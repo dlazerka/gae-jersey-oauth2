@@ -1,1 +1,23 @@
-/target
+target
+build
+out
+
+/.idea/workspace.xml
+/.idea/tasks.xml
+/.idea/fileTemplates/
+/.idea/dataSources.ids
+/.idea/dataSources.xml
+/.idea/sqlDataSources.xml
+/.idea/dynamic.xml
+/.idea/uiDesigner.xml
+
+## Parsed pom.xml deps.
+/.idea/libraries
+
+## Old file-based project format:
+*.ipr
+*.iws
+
+
+.DS_Store
+
