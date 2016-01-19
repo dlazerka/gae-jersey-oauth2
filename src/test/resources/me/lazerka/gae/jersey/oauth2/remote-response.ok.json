@@ -1,0 +1,14 @@
+{
+  "iss": "https://accounts.google.com",
+  "aud": "web-client-id.apps.googleusercontent.com",
+  "sub": "123456",
+  "azp": "android-client-id.apps.googleusercontent.com",
+  "email": "me@gmail.com",
+  "email_verified": true,
+  "iat": 1449303949,
+  "exp": 1449307549,
+  "picture": "https://example.com/photo.jpg",
+  "name": "Test Test",
+  "given_name": "Test",
+  "family_name": "Test"
+}
