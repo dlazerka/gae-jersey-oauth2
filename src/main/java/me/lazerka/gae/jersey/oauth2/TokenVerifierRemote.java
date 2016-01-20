@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.net.URL;
@@ -62,7 +61,7 @@ public class TokenVerifierRemote implements TokenVerifier {
 	JsonFactory jsonFactory;
 
 	@Inject
-	@Named(OauthModule.OAUTH_CLIENT_ID)
+	@OauthClientId
 	String oauthClientId;
 
 	@Override
@@ -104,10 +103,7 @@ public class TokenVerifierRemote implements TokenVerifier {
 
 		Payload payload = jsonFactory.fromString(content, Payload.class);
 
-		// Issuers verification should have been done remotely, but we do it again.
-		if (!OauthModule.ALLOWED_ISSUERS.contains(payload.getIssuer())) {
-			throw new InvalidKeyException("Issuer invalid");
-		}
+		// Issuers verification have been done remotely.
 
 		Set<String> trustedClientIds = Collections.singleton(oauthClientId);
 		// Note containsAll.
