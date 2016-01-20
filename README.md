@@ -11,13 +11,14 @@ Authentication using OAuth2.0, integrated with Google App Engine and Jersey serv
 
 
 # Usage
-Annotate your resources or methods with standard javax.annotation.security.*:
+Annotate your resources with standard javax.annotation.security.*:
 * `@RolesAllowed(Role.USER)`
 * `@RolesAllowed(Role.ADMIN)`,
 * `@PermitAll`
 * `@DenyAll`
 
 To get current user credentials:
+
 	import javax.ws.rs.core.SecurityContext;
 	import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 
