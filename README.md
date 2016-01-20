@@ -6,19 +6,19 @@ Authentication using OAuth2.0, integrated with Google App Engine and Jersey serv
 # Set up
 1. Add project dependency.
 
-	* Maven: 
-	```xml 
+	* Maven:
+	```xml
 		<dependency>
 			<groupId>me.lazerka.gae-jersey-oauth2</groupId>
 			<artifactId>gae-jersey-oauth2</artifactId>
-			<version>1.0-beta2</version>
+			<version>1.0</version>
 		</dependency>
 	```
-	* Gradle: 
+	* Gradle:
 	```groovy
-		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:1.0-beta2'
+		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:1.0'
 	```
-2. Install Guice module: 
+2. Install Guice module:
 
 	```java
 	install(new OauthModule());
