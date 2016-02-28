@@ -32,9 +32,9 @@ Authentication using OAuth2.0, integrated with Google App Engine and Jersey serv
 
 
 # Usage
-Annotate your resources with standard javax.annotation.security.*:
+Annotate your resources with one of standard `javax.annotation.security.*` annotations:
 * `@RolesAllowed(Role.USER)`
-* `@RolesAllowed(Role.ADMIN)`,
+* `@RolesAllowed(Role.ADMIN)`
 * `@PermitAll`
 * `@DenyAll`
 
