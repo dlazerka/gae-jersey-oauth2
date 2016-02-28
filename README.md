@@ -19,14 +19,16 @@ Authentication using OAuth2.0, integrated with Google App Engine and Jersey serv
 		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:1.0-beta2'
 	```
 2. Install Guice module: 
-```java
-install(new OauthModule());
-```
-See available OauthModule constructors.
+
+	```java
+	install(new OauthModule());
+	```
+	See available OauthModule constructors.
 3. Add Jersey parameter:
-```java
-parameters.put(ResourceConfig.PROPERTY_RESOURCE_FILTER_FACTORIES, AuthFilterFactory.class.getName())
-```
+
+	```java
+	parameters.put(ResourceConfig.PROPERTY_RESOURCE_FILTER_FACTORIES, AuthFilterFactory.class.getName())
+	```
 
 
 # Usage
