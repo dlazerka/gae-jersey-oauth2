@@ -44,7 +44,13 @@ public class TokenVerifierSignature implements TokenVerifier {
 
 	@Override
 	public UserPrincipal verify(String token) throws IOException, GeneralSecurityException {
-		GoogleIdToken idToken = GoogleIdToken.parse(tokenVerifier.getJsonFactory(), token);
+
+		GoogleIdToken idToken;
+		try {
+			idToken = GoogleIdToken.parse(tokenVerifier.getJsonFactory(), token);
+		} catch (IllegalArgumentException e) {
+			throw new InvalidKeyException("Cannot parse token as JWS");
+		}
 
 		if (!tokenVerifier.verify(idToken)) {
 			String email = idToken.getPayload().getEmail();
