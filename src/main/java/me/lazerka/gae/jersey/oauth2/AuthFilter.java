@@ -87,14 +87,14 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 		UserPrincipal principal = securityContext.getUserPrincipal();
 		logger.warn("User {} not in roles {}", principal, rolesAllowed);
 
-		throw new WebApplicationException(getForbiddenResponse(request, "Not Authorized"));
+		throw new WebApplicationException(getForbiddenResponse("Not Authorized"));
 	}
 
 	private AuthSecurityContext getSecurityContext(ContainerRequest request) {
 		// Deny all insecure requests on production (@PermitAll requests do not come here at all).
 		if (!request.isSecure() && !isDevServer()) {
 			logger.warn("Insecure auth, Deny: " + request);
-			throw new WebApplicationException(getForbiddenResponse(request, "Request insecure"));
+			throw new WebApplicationException(getUnauthenticatedResponse(request, "Request insecure"));
 		}
 
 		// Check regular GAE authentication.
@@ -110,12 +110,12 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 				return useOauthAuthentication(request, token);
 			} else {
 				logger.warn("Authorization should use Bearer protocol {}", request.getPath());
-				throw new WebApplicationException(getForbiddenResponse(request, "Not Bearer Authorization"));
+				throw new WebApplicationException(getUnauthenticatedResponse(request, "Not Bearer Authorization"));
 			}
 		}
 
 		logger.warn("No credentials provided for {}", request.getPath());
-		throw new WebApplicationException(getForbiddenResponse(request, "No credentials provided"));
+		throw new WebApplicationException(getUnauthenticatedResponse(request, "No credentials provided"));
 	}
 
 	private AuthSecurityContext useOauthAuthentication(ContainerRequest request, String token) {
@@ -130,10 +130,10 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 			);
 		} catch (GeneralSecurityException e) {
 			logger.info(e.getClass().getName() + ": " + e.getMessage());
-			throw new WebApplicationException(e, getForbiddenResponse(request, "Invalid OAuth2.0 token"));
+			throw new WebApplicationException(e, getUnauthenticatedResponse(request, "Invalid OAuth2.0 token"));
 		} catch (IOException e) {
 			logger.error("IOException verifying OAuth token", e);
-			throw new WebApplicationException(e, getForbiddenResponse(request, "Error verifying OAuth2.0 token"));
+			throw new WebApplicationException(e, getUnauthenticatedResponse(request, "Error verifying OAuth2.0 token"));
 		}
 	}
 
@@ -152,19 +152,27 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 		);
 	}
 
-	private Response getForbiddenResponse(ContainerRequest request, String reason) {
+	protected Response getUnauthenticatedResponse(ContainerRequest request, String reason) {
 		// In case request is AJAX, we want to tell client how to authenticate user.
 		String loginUrl = composeLoginUrl(request);
 
 		return Response
-				.status(Status.FORBIDDEN)
+				.status(Status.UNAUTHORIZED)
 				.type(MediaType.TEXT_PLAIN_TYPE)
 				.header("X-Login-URL", loginUrl)
 				.entity(reason)
 				.build();
 	}
 
-	private String composeLoginUrl(ContainerRequest request) {
+	protected Response getForbiddenResponse(String reason) {
+		return Response
+				.status(Status.FORBIDDEN)
+				.type(MediaType.TEXT_PLAIN_TYPE)
+				.entity(reason)
+				.build();
+	}
+
+	protected String composeLoginUrl(ContainerRequest request) {
 		List<String> loginReturnUrls = request.getRequestHeader("X-Login-Return-Url");
 		String loginReturnUrl;
 		if (loginReturnUrls == null || loginReturnUrls.isEmpty()) {

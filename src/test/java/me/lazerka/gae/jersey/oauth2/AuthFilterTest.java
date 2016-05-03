@@ -88,7 +88,7 @@ public class AuthFilterTest {
 			fail();
 		} catch (WebApplicationException e) {
 			assertThat(e.getCause(), instanceOf(InvalidKeyException.class));
-			assertThat(e.getResponse().getStatus(), is(403));
+			assertThat(e.getResponse().getStatus(), is(401));
 			verify(request, never()).setSecurityContext(any(AuthSecurityContext.class));
 		}
 	}
@@ -101,7 +101,7 @@ public class AuthFilterTest {
 		try {
 			unit.filter(request);
 		} catch (WebApplicationException e) {
-			assertThat(e.getResponse().getStatus(), is(403));
+			assertThat(e.getResponse().getStatus(), is(401));
 			return;
 		}
 

@@ -45,8 +45,12 @@ public class AuthFilterFactory implements ResourceFilterFactory {
 
 	private final List<String> httpMethods = ImmutableList.of("GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS");
 
+	private final Provider<AuthFilter> authFilterProvider;
+
 	@Inject
-	Provider<AuthFilter> authFilterProvider;
+	public AuthFilterFactory(Provider<AuthFilter> authFilterProvider) {
+		this.authFilterProvider = authFilterProvider;
+	}
 
 	@Override
 	public List<ResourceFilter> create(AbstractMethod method) {
