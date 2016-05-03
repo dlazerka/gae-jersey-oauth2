@@ -22,12 +22,22 @@
 
 	<groupId>me.lazerka.gae-jersey-oauth2</groupId>
 	<artifactId>gae-jersey-oauth2</artifactId>
-	<version>1.0</version>
+	<version>1.1</version>
 	<packaging>jar</packaging>
 
 	<name>GAE Jersey Oauth2.0</name>
-	<description>Authentication using OAuth2.0, integrated with Google App Engine and Jersey servlet container.</description>
+	<description>
+		Authentication using OAuth2.0, integrated with Google App Engine and Jersey servlet container.
+	</description>
 	<url>http://maven.apache.org</url>
+
+	<distributionManagement>
+		<repository>
+			<id>bintray-dlazerka-gae-jersey-oauth2</id>
+			<name>dlazerka-gae-jersey-oauth2</name>
+			<url>https://api.bintray.com/maven/dlazerka/gae-jersey-oauth2/gae-jersey-oauth2/;publish=1</url>
+		</repository>
+	</distributionManagement>
 
 	<dependencies>
 		<!-- GAE -->
