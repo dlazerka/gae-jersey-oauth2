@@ -18,6 +18,8 @@ package me.lazerka.gae.jersey.oauth2;
 
 import com.google.appengine.api.users.UserService;
 
+import javax.ws.rs.core.SecurityContext;
+
 /**
  * @author Dzmitry Lazerka
  */
@@ -31,4 +33,10 @@ public class Role {
 	 * Application admins, as determined by {@link UserService#isUserAdmin()}
 	 */
 	public static final String ADMIN = "ADMIN";
+
+	/**
+	 * Try to authenticate, but if token is not provided or invalid, don't create {@link SecurityContext}.
+	 */
+	public static final String OPTIONAL = "OPTIONAL";
+
 }

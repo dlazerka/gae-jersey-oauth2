@@ -31,12 +31,15 @@ public class AuthSecurityContext implements SecurityContext {
 	private final String authenticationScheme;
 
 	public AuthSecurityContext(UserPrincipal user, boolean secure, Set<String> role, String authenticationScheme) {
-		this.user = checkNotNull(user);
+		this.user = user;
 		this.secure = secure;
 		this.roles = checkNotNull(role);
 		this.authenticationScheme = checkNotNull(authenticationScheme);
 	}
 
+	/**
+	 * May be null if roles contain {@link Role#OPTIONAL}.
+	 */
 	@Override
 	public UserPrincipal getUserPrincipal() {
 		return user;

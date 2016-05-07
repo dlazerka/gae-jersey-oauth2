@@ -11,12 +11,12 @@ Authentication using OAuth2.0, integrated with Google App Engine and Jersey serv
 		<dependency>
 			<groupId>me.lazerka.gae-jersey-oauth2</groupId>
 			<artifactId>gae-jersey-oauth2</artifactId>
-			<version>1.0</version>
+			<version>1.2</version>
 		</dependency>
 	```
 	* Gradle:
 	```groovy
-		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:1.0'
+		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:1.2'
 	```
 2. Install Guice module:
 
@@ -35,6 +35,7 @@ Authentication using OAuth2.0, integrated with Google App Engine and Jersey serv
 Annotate your resources with one of standard `javax.annotation.security.*` annotations:
 * `@RolesAllowed(Role.USER)`
 * `@RolesAllowed(Role.ADMIN)`
+* `@RolesAllowed(Role.OPTIONAL)`
 * `@PermitAll`
 * `@DenyAll`
 
@@ -55,4 +56,6 @@ public class UserService {
 }
 ```
 
-Note that resources annotated with `@PermitAll` do not get any principal set.
+Resources annotated with `@PermitAll` do not even check authentication,
+so resources annotated with it will not get any `SecurityContext` even if user is
+authenticated. See `Role.OPTIONAL`.

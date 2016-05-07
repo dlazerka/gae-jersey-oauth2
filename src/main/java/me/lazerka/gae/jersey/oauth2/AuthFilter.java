@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
@@ -94,7 +95,7 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 		// Deny all insecure requests on production (@PermitAll requests do not come here at all).
 		if (!request.isSecure() && !isDevServer()) {
 			logger.warn("Insecure auth, Deny: " + request);
-			throw new WebApplicationException(getUnauthenticatedResponse(request, "Request insecure"));
+			return throwUnauthenticatedIfNotOptional(request, "Request insecure", null);
 		}
 
 		// Check regular GAE authentication.
@@ -110,12 +111,12 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 				return useOauthAuthentication(request, token);
 			} else {
 				logger.warn("Authorization should use Bearer protocol {}", request.getPath());
-				throw new WebApplicationException(getUnauthenticatedResponse(request, "Not Bearer Authorization"));
+				return throwUnauthenticatedIfNotOptional(request, "Not Bearer Authorization", null);
 			}
 		}
 
 		logger.warn("No credentials provided for {}", request.getPath());
-		throw new WebApplicationException(getUnauthenticatedResponse(request, "No credentials provided"));
+		return throwUnauthenticatedIfNotOptional(request, "No credentials provided", null);
 	}
 
 	private AuthSecurityContext useOauthAuthentication(ContainerRequest request, String token) {
@@ -125,22 +126,22 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 			return new AuthSecurityContext(
 					userPrincipal,
 					request.isSecure(),
-					ImmutableSet.of(Role.USER),
+					ImmutableSet.of(Role.USER, Role.OPTIONAL),
 					"OAuth2.0"
 			);
 		} catch (GeneralSecurityException e) {
 			logger.info(e.getClass().getName() + ": " + e.getMessage());
-			throw new WebApplicationException(e, getUnauthenticatedResponse(request, "Invalid OAuth2.0 token"));
+			return throwUnauthenticatedIfNotOptional(request, "Invalid OAuth2.0 token", e);
 		} catch (IOException e) {
 			logger.error("IOException verifying OAuth token", e);
-			throw new WebApplicationException(e, getUnauthenticatedResponse(request, "Error verifying OAuth2.0 token"));
+			return throwUnauthenticatedIfNotOptional(request, "Error verifying OAuth2.0 token", e);
 		}
 	}
 
 	private AuthSecurityContext useGaeAuthentication(ContainerRequest request) {
 		Set<String> roles = userService.isUserAdmin()
-				? ImmutableSet.of(Role.USER, Role.ADMIN)
-				: ImmutableSet.of(Role.USER);
+				? ImmutableSet.of(Role.USER, Role.ADMIN, Role.OPTIONAL)
+				: ImmutableSet.of(Role.USER, Role.OPTIONAL);
 
 		User user = userService.getCurrentUser();
 		UserPrincipal userPrincipal = new UserPrincipal(user.getUserId(), user.getEmail());
@@ -152,16 +153,36 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 		);
 	}
 
-	protected Response getUnauthenticatedResponse(ContainerRequest request, String reason) {
+	/**
+	 * Throws 401 Unauthorized, or, if {@link #rolesAllowed} contains {@link Role#OPTIONAL}, returns context.
+	 *
+	 * @throws WebApplicationException with Status.UNAUTHORIZED (401).
+	 */
+	protected AuthSecurityContext throwUnauthenticatedIfNotOptional(
+			ContainerRequest request,
+			String reason,
+			@Nullable Exception cause
+	) {
 		// In case request is AJAX, we want to tell client how to authenticate user.
 		String loginUrl = composeLoginUrl(request);
 
-		return Response
+		Response response = Response
 				.status(Status.UNAUTHORIZED)
 				.type(MediaType.TEXT_PLAIN_TYPE)
 				.header("X-Login-URL", loginUrl)
 				.entity(reason)
 				.build();
+
+		if (rolesAllowed.contains(Role.OPTIONAL)) {
+			return new AuthSecurityContext(
+								null,
+								request.isSecure(),
+								ImmutableSet.of(Role.OPTIONAL),
+								"OAuth2.0"
+						);
+		}
+
+		throw new WebApplicationException(cause, response);
 	}
 
 	protected Response getForbiddenResponse(String reason) {

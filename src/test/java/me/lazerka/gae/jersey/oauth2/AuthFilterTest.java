@@ -16,15 +16,18 @@
 
 package me.lazerka.gae.jersey.oauth2;
 
+import com.google.appengine.api.users.User;
 import com.google.appengine.api.users.UserService;
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.api.utils.SystemProperty.Environment.Value;
 import com.google.common.collect.ImmutableSet;
 import com.sun.jersey.spi.container.ContainerRequest;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.SecurityContext;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -32,8 +35,7 @@ import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.fail;
@@ -44,12 +46,14 @@ import static org.testng.Assert.fail;
 public class AuthFilterTest {
 	String token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiIxMTAxNjk0ODQ0NzQzODYyNzYzMzQiLCJhenAiOiIxMDA4NzE5OTcwOTc4LWhiMjRuMmRzdGI0MG80NWQ0ZmV1bzJ1a3FtY2M2MzgxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiZW1haWxfdmVyaWZpZWQiOiJ0cnVlIiwiZW1haWwiOiJiaWxsZDE2MDBAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVGVzdCIsImF1ZCI6IjEwMDg3MTk5NzA5NzgtaGIyNG4yZHN0YjQwbzQ1ZDRmZXVvMnVrcW1jYzYzODEuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJpYXQiOjE0MzM5NzgzNTMsImV4cCI6MTQzMzk4MTk1M30.GC1hAjr8DbAT5CkEL19wCUqZHsDH1SklFPL2ZJxezW8";
 
-	ContainerRequest request = mock(ContainerRequest.class);
+	ContainerRequest request;
 
 	AuthFilter unit;
 
 	@BeforeMethod
 	public void setUp() throws URISyntaxException, IOException {
+		request = mock(ContainerRequest.class);
+
 		unit = new AuthFilter();
 		unit.tokenVerifier = mock(TokenVerifier.class);
 
@@ -58,27 +62,67 @@ public class AuthFilterTest {
 
 		when(request.getRequestUri())
 				.thenReturn(URI.create("https://example.com"));
+
+		SystemProperty.environment.set(Value.Production);
 	}
 
 	@Test
 	public void testFilterOk() throws GeneralSecurityException, IOException {
 		when(request.isSecure()).thenReturn(true);
 		when(request.getHeaderValue("Authorization")).thenReturn("Bearer " + token);
-		SystemProperty.environment.set(Value.Production);
 
 		when(unit.tokenVerifier.verify(token))
 				.thenReturn(new UserPrincipal("123", "test@example.com"));
 
 		unit.filter(request);
 
-		verify(request).setSecurityContext(any(AuthSecurityContext.class));
+		ArgumentCaptor<SecurityContext> captor = ArgumentCaptor.forClass(SecurityContext.class);
+		verify(request).setSecurityContext(captor.capture());
+
+		SecurityContext securityContext = captor.getValue();
+		UserPrincipal expectedPrincipal = new UserPrincipal("123", "test@example.com");
+		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(expectedPrincipal));
+		assertThat(securityContext.getAuthenticationScheme(), is("OAuth2.0"));
+		assertThat(securityContext.isSecure(), is(true));
+		assertThat(securityContext.isUserInRole(Role.OPTIONAL), is(true));
+		assertThat(securityContext.isUserInRole(Role.USER), is(true));
+		assertThat(securityContext.isUserInRole(Role.ADMIN), is(false));
+	}
+
+
+	@Test
+	public void testFilterAdminOk() {
+		unit.setRolesAllowed(ImmutableSet.of(Role.ADMIN));
+		when(request.isSecure()).thenReturn(true);
+		when(request.getHeaderValue("Authorization")).thenReturn(null);
+
+		when(unit.userService.isUserLoggedIn()).thenReturn(true);
+		when(unit.userService.isUserAdmin()).thenReturn(true);
+		when(unit.userService.getCurrentUser()).thenReturn(new User("test@example.com", "google.com", "123"));
+
+		try {
+			unit.filter(request);
+		} catch (WebApplicationException e) {
+			fail("Should pass, but is: " + e.getResponse().getStatus(), e);
+		}
+
+		ArgumentCaptor<SecurityContext> captor = ArgumentCaptor.forClass(SecurityContext.class);
+		verify(request).setSecurityContext(captor.capture());
+
+		SecurityContext securityContext = captor.getValue();
+		UserPrincipal expectedPrincipal = new UserPrincipal("123", "test@example.com");
+		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(expectedPrincipal));
+		assertThat(securityContext.getAuthenticationScheme(), is("GAE"));
+		assertThat(securityContext.isSecure(), is(true));
+		assertThat(securityContext.isUserInRole(Role.OPTIONAL), is(true));
+		assertThat(securityContext.isUserInRole(Role.USER), is(true));
+		assertThat(securityContext.isUserInRole(Role.ADMIN), is(true));
 	}
 
 	@Test
 	public void testFilterFail() throws GeneralSecurityException, IOException {
 		when(request.isSecure()).thenReturn(true);
 		when(request.getHeaderValue("Authorization")).thenReturn("Bearer " + token);
-		SystemProperty.environment.set(Value.Production);
 
 		when(unit.tokenVerifier.verify(token))
 				.thenThrow(new InvalidKeyException("Test msg"));
@@ -95,7 +139,6 @@ public class AuthFilterTest {
 
 	@Test
 	public void testFilterInsecure() {
-		SystemProperty.environment.set(Value.Production);
 		when(request.isSecure()).thenReturn(false);
 
 		try {
@@ -106,5 +149,26 @@ public class AuthFilterTest {
 		}
 
 		fail();
+	}
+
+	@Test
+	public void testRoleOptional() {
+		unit.setRolesAllowed(ImmutableSet.of(Role.OPTIONAL));
+		when(request.isSecure()).thenReturn(true);
+		when(request.getHeaderValue("Authorization")).thenReturn(null);
+
+		try {
+			unit.filter(request);
+		} catch (WebApplicationException e) {
+			fail();
+		}
+
+		ArgumentCaptor<SecurityContext> captor = ArgumentCaptor.forClass(SecurityContext.class);
+		verify(request).setSecurityContext(captor.capture());
+
+		SecurityContext securityContext = captor.getValue();
+		assertThat(securityContext.getUserPrincipal(), nullValue());
+		assertThat(securityContext.getAuthenticationScheme(), is("OAuth2.0"));
+		assertThat(securityContext.isSecure(), is(true));
 	}
 }
