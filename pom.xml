@@ -44,7 +44,7 @@
 		<dependency>
 			<groupId>com.google.appengine</groupId>
 			<artifactId>appengine-api-1.0-sdk</artifactId>
-			<version>1.9.36</version>
+			<version>1.9.37</version>
 		</dependency>
 
 		<!-- Jersey -->
