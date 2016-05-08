@@ -16,6 +16,8 @@
 
 package me.lazerka.gae.jersey.oauth2;
 
+import javax.annotation.Nullable;
+import javax.ws.rs.core.SecurityContext;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
@@ -23,5 +25,14 @@ import java.security.GeneralSecurityException;
  * @author Dzmitry Lazerka
  */
 public interface TokenVerifier {
+	/**
+	 * @param authProvider value of {@link AuthFilter#PROVIDER_HEADER} request header.
+	 *                     `null` if request has no provider header.
+	 */
+	boolean canHandle(@Nullable String authProvider);
+
 	UserPrincipal verify(String authToken) throws IOException, GeneralSecurityException;
+
+	/** @return what should be returned from {@link SecurityContext#getAuthenticationScheme()}. */
+	String getAuthenticationScheme();
 }

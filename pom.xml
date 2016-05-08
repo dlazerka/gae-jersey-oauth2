@@ -22,7 +22,7 @@
 
 	<groupId>me.lazerka.gae-jersey-oauth2</groupId>
 	<artifactId>gae-jersey-oauth2</artifactId>
-	<version>1.2</version>
+	<version>2.0</version>
 	<packaging>jar</packaging>
 
 	<name>GAE Jersey Oauth2.0</name>
@@ -38,6 +38,10 @@
 			<url>https://api.bintray.com/maven/dlazerka/gae-jersey-oauth2/gae-jersey-oauth2/;publish=1</url>
 		</repository>
 	</distributionManagement>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
 
 	<dependencies>
 		<!-- GAE -->
@@ -91,6 +95,11 @@
 		<dependency>
 			<groupId>com.google.inject</groupId>
 			<artifactId>guice</artifactId>
+			<version>4.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.inject.extensions</groupId>
+			<artifactId>guice-multibindings</artifactId>
 			<version>4.0</version>
 		</dependency>
 		<dependency>

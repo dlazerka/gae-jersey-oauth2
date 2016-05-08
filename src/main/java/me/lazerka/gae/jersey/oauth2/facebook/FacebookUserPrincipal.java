@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
-package me.lazerka.gae.jersey.oauth2;
+package me.lazerka.gae.jersey.oauth2.facebook;
 
-import com.google.inject.BindingAnnotation;
+import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
-import static java.lang.annotation.ElementType.*;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
-
+import javax.annotation.Nonnull;
 
 /**
- * String members annotated with this will be bound to OAuth Client Id.
- * @see OauthModule
+ * @author Dzmitry Lazerka
  */
-@BindingAnnotation
-@Target({ FIELD, PARAMETER, METHOD })
-@Retention(RUNTIME)
-public @interface OauthClientId {}
+public class FacebookUserPrincipal extends UserPrincipal {
+	private final String accessToken;
+
+	public FacebookUserPrincipal(@Nonnull String id, String accessToken) {
+		super(id);
+		this.accessToken = accessToken;
+	}
+
+	/**
+	 * Exchanged access token in case you need to call Facebook API for this user info (like email).
+	 */
+	public String getAccessToken() {
+		return accessToken;
+	}
+}

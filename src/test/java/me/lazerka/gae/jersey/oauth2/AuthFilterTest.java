@@ -22,6 +22,8 @@ import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.api.utils.SystemProperty.Environment.Value;
 import com.google.common.collect.ImmutableSet;
 import com.sun.jersey.spi.container.ContainerRequest;
+import me.lazerka.gae.jersey.oauth2.facebook.FacebookUserPrincipal;
+import me.lazerka.gae.jersey.oauth2.google.GoogleUserPrincipal;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -44,18 +46,26 @@ import static org.testng.Assert.fail;
  * @author Dzmitry Lazerka
  */
 public class AuthFilterTest {
-	String token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiIxMTAxNjk0ODQ0NzQzODYyNzYzMzQiLCJhenAiOiIxMDA4NzE5OTcwOTc4LWhiMjRuMmRzdGI0MG80NWQ0ZmV1bzJ1a3FtY2M2MzgxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiZW1haWxfdmVyaWZpZWQiOiJ0cnVlIiwiZW1haWwiOiJiaWxsZDE2MDBAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVGVzdCIsImF1ZCI6IjEwMDg3MTk5NzA5NzgtaGIyNG4yZHN0YjQwbzQ1ZDRmZXVvMnVrcW1jYzYzODEuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJpYXQiOjE0MzM5NzgzNTMsImV4cCI6MTQzMzk4MTk1M30.GC1hAjr8DbAT5CkEL19wCUqZHsDH1SklFPL2ZJxezW8";
+	String token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" +
+			".eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiIxMTAxNjk0ODQ0NzQzODYyNzYzMzQiLCJhenAiOiIx" +
+			"MDA4NzE5OTcwOTc4LWhiMjRuMmRzdGI0MG80NWQ0ZmV1bzJ1a3FtY2M2MzgxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiZ" +
+			"W1haWxfdmVyaWZpZWQiOiJ0cnVlIiwiZW1haWwiOiJiaWxsZDE2MDBAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVGVzdCIsImF1ZC" +
+			"I6IjEwMDg3MTk5NzA5NzgtaGIyNG4yZHN0YjQwbzQ1ZDRmZXVvMnVrcW1jYzYzODEuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20" +
+			"iLCJpYXQiOjE0MzM5NzgzNTMsImV4cCI6MTQzMzk4MTk1M30" +
+			".GC1hAjr8DbAT5CkEL19wCUqZHsDH1SklFPL2ZJxezW8";
 
 	ContainerRequest request;
 
 	AuthFilter unit;
+	private TokenVerifier verifierMock;
 
 	@BeforeMethod
 	public void setUp() throws URISyntaxException, IOException {
 		request = mock(ContainerRequest.class);
 
 		unit = new AuthFilter();
-		unit.tokenVerifier = mock(TokenVerifier.class);
+		verifierMock = mock(TokenVerifier.class);
+		unit.tokenVerifiers = ImmutableSet.of(verifierMock);
 
 		unit.setRolesAllowed(ImmutableSet.of(Role.USER));
 		unit.userService = mock(UserService.class);
@@ -71,8 +81,12 @@ public class AuthFilterTest {
 		when(request.isSecure()).thenReturn(true);
 		when(request.getHeaderValue("Authorization")).thenReturn("Bearer " + token);
 
-		when(unit.tokenVerifier.verify(token))
-				.thenReturn(new UserPrincipal("123", "test@example.com"));
+		when(verifierMock.canHandle(null))
+				.thenReturn(true);
+		when(verifierMock.verify(token))
+				.thenReturn(new FacebookUserPrincipal("123", "test@example.com"));
+		when(verifierMock.getAuthenticationScheme())
+				.thenReturn("TestScheme");
 
 		unit.filter(request);
 
@@ -80,9 +94,9 @@ public class AuthFilterTest {
 		verify(request).setSecurityContext(captor.capture());
 
 		SecurityContext securityContext = captor.getValue();
-		UserPrincipal expectedPrincipal = new UserPrincipal("123", "test@example.com");
+		UserPrincipal expectedPrincipal = new FacebookUserPrincipal("123", "test@example.com");
 		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(expectedPrincipal));
-		assertThat(securityContext.getAuthenticationScheme(), is("OAuth2.0"));
+		assertThat(securityContext.getAuthenticationScheme(), is("TestScheme"));
 		assertThat(securityContext.isSecure(), is(true));
 		assertThat(securityContext.isUserInRole(Role.OPTIONAL), is(true));
 		assertThat(securityContext.isUserInRole(Role.USER), is(true));
@@ -110,9 +124,9 @@ public class AuthFilterTest {
 		verify(request).setSecurityContext(captor.capture());
 
 		SecurityContext securityContext = captor.getValue();
-		UserPrincipal expectedPrincipal = new UserPrincipal("123", "test@example.com");
+		UserPrincipal expectedPrincipal = new GoogleUserPrincipal("123", "test@example.com");
 		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(expectedPrincipal));
-		assertThat(securityContext.getAuthenticationScheme(), is("GAE"));
+		assertThat(securityContext.getAuthenticationScheme(), is(AuthFilter.GAE_AUTH_SCHEME));
 		assertThat(securityContext.isSecure(), is(true));
 		assertThat(securityContext.isUserInRole(Role.OPTIONAL), is(true));
 		assertThat(securityContext.isUserInRole(Role.USER), is(true));
@@ -124,7 +138,9 @@ public class AuthFilterTest {
 		when(request.isSecure()).thenReturn(true);
 		when(request.getHeaderValue("Authorization")).thenReturn("Bearer " + token);
 
-		when(unit.tokenVerifier.verify(token))
+		when(verifierMock.canHandle(null))
+				.thenReturn(true);
+		when(verifierMock.verify(token))
 				.thenThrow(new InvalidKeyException("Test msg"));
 
 		try {
@@ -168,7 +184,7 @@ public class AuthFilterTest {
 
 		SecurityContext securityContext = captor.getValue();
 		assertThat(securityContext.getUserPrincipal(), nullValue());
-		assertThat(securityContext.getAuthenticationScheme(), is("OAuth2.0"));
+		assertThat(securityContext.getAuthenticationScheme(), is(AuthFilter.UNAUTHENTICATED_AUTH_SCHEME));
 		assertThat(securityContext.isSecure(), is(true));
 	}
 }

@@ -14,52 +14,34 @@
  * limitations under the License.
  */
 
-package me.lazerka.gae.jersey.oauth2;
+package me.lazerka.gae.jersey.oauth2.google;
+
+import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 
 import javax.annotation.Nonnull;
-import java.security.Principal;
+import javax.annotation.Nullable;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * @author Dzmitry Lazerka
  */
-public abstract class UserPrincipal implements Principal {
-	private final String id;
+public class GoogleUserPrincipal extends UserPrincipal {
+	private final String email;
 
-	public UserPrincipal(@Nonnull String id) {
-		this.id = checkNotNull(id);
+	public GoogleUserPrincipal(@Nonnull String id, @Nullable String email) {
+		super(id);
+		this.email = checkNotNull(email);
+		checkArgument(email.contains("@"), "Email must contain @.");
 	}
 
-	@Nonnull
-	@Override
-	public String getName() {
-		return id;
-	}
-
-	@Nonnull
-	public String getId() {
-		return id;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
-
-		UserPrincipal that = (UserPrincipal) o;
-
-		return id.equals(that.id);
-
-	}
-
-	@Override
-	public int hashCode() {
-		return id.hashCode();
+	public String getEmail() {
+		return email;
 	}
 
 	@Override
 	public String toString() {
-		return id;
+		return super.toString() + ' ' + '<' + email + '>';
 	}
 }

@@ -26,6 +26,7 @@ import com.sun.jersey.spi.container.ContainerRequest;
 import com.sun.jersey.spi.container.ContainerRequestFilter;
 import com.sun.jersey.spi.container.ContainerResponseFilter;
 import com.sun.jersey.spi.container.ResourceFilter;
+import me.lazerka.gae.jersey.oauth2.google.GoogleUserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,7 @@ import java.util.Set;
 
 import static com.google.appengine.api.utils.SystemProperty.Environment.Value.Development;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Checks requests whether they are authenticated using either GAE or OAuth authentication.
@@ -54,19 +56,23 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 	private static final Logger logger = LoggerFactory.getLogger(AuthFilter.class);
 
-	@Inject
-	UserService userService;
+	public static final String PROVIDER_HEADER = "X-Authorization-Provider";
+	public static final String GAE_AUTH_SCHEME = "GAE";
+	public static final String UNAUTHENTICATED_AUTH_SCHEME = "Unauthenticated";
 
 	@Inject
-	TokenVerifier tokenVerifier;
+	protected Set<TokenVerifier> tokenVerifiers;
 
-	Set<String> rolesAllowed;
+	@Inject
+	protected UserService userService;
+
+	protected Set<String> rolesAllowed;
 
 	protected void setRolesAllowed(Set<String> rolesAllowed) {
 		this.rolesAllowed = rolesAllowed;
 	}
 
-	private boolean isDevServer() {
+	public static boolean isDevServer() {
 		Value env = SystemProperty.environment.value();
 		return env.equals(Development);
 	}
@@ -75,6 +81,7 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 	@Nonnull
 	public ContainerRequest filter(ContainerRequest request) {
 		checkNotNull(rolesAllowed);
+		checkState(!tokenVerifiers.isEmpty(), "No tokenVerifiers configured");
 
 		AuthSecurityContext securityContext = getSecurityContext(request);
 
@@ -91,7 +98,7 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 		throw new WebApplicationException(getForbiddenResponse("Not Authorized"));
 	}
 
-	private AuthSecurityContext getSecurityContext(ContainerRequest request) {
+	protected AuthSecurityContext getSecurityContext(ContainerRequest request) {
 		// Deny all insecure requests on production (@PermitAll requests do not come here at all).
 		if (!request.isSecure() && !isDevServer()) {
 			logger.warn("Insecure auth, Deny: " + request);
@@ -105,21 +112,27 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 
 		// Check OAuth authentication.
 		String authorizationHeader = request.getHeaderValue("Authorization");
-		if (authorizationHeader != null) {
-			if (authorizationHeader.startsWith("Bearer ")) {
-				String token = authorizationHeader.substring("Bearer ".length());
-				return useOauthAuthentication(request, token);
-			} else {
-				logger.warn("Authorization should use Bearer protocol {}", request.getPath());
-				return throwUnauthenticatedIfNotOptional(request, "Not Bearer Authorization", null);
-			}
+		if (authorizationHeader == null) {
+			logger.warn("No credentials provided for {}", request.getPath());
+			return throwUnauthenticatedIfNotOptional(request, "No credentials provided", null);
 		}
 
-		logger.warn("No credentials provided for {}", request.getPath());
-		return throwUnauthenticatedIfNotOptional(request, "No credentials provided", null);
+		if (authorizationHeader.startsWith("Bearer ")) {
+			String token = authorizationHeader.substring("Bearer ".length());
+			return useOauthAuthentication(request, token);
+		} else {
+			logger.warn("Authorization should use Bearer protocol {}", request.getPath());
+			return throwUnauthenticatedIfNotOptional(request, "Not Bearer Authorization", null);
+		}
 	}
 
-	private AuthSecurityContext useOauthAuthentication(ContainerRequest request, String token) {
+	protected AuthSecurityContext useOauthAuthentication(ContainerRequest request, String token) {
+		TokenVerifier tokenVerifier = findTokenVerifier(request);
+
+		if (tokenVerifier == null) {
+			return throwUnauthenticatedIfNotOptional(request, "Cannot found suitable TokenVerifier", null);
+		}
+
 		logger.trace("Authenticating OAuth2.0 user...");
 		try {
 			UserPrincipal userPrincipal = tokenVerifier.verify(token);
@@ -127,7 +140,7 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 					userPrincipal,
 					request.isSecure(),
 					ImmutableSet.of(Role.USER, Role.OPTIONAL),
-					"OAuth2.0"
+					tokenVerifier.getAuthenticationScheme()
 			);
 		} catch (GeneralSecurityException e) {
 			logger.info(e.getClass().getName() + ": " + e.getMessage());
@@ -138,18 +151,30 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 		}
 	}
 
-	private AuthSecurityContext useGaeAuthentication(ContainerRequest request) {
+	protected TokenVerifier findTokenVerifier(ContainerRequest request) {
+		String provider = request.getHeaderValue(PROVIDER_HEADER);
+		for (TokenVerifier tokenVerifier : tokenVerifiers) {
+			if (tokenVerifier.canHandle(provider)) {
+				return tokenVerifier;
+			}
+		}
+
+		logger.warn("No TokenVerifier for provider {}", provider);
+		return null;
+	}
+
+	protected AuthSecurityContext useGaeAuthentication(ContainerRequest request) {
 		Set<String> roles = userService.isUserAdmin()
 				? ImmutableSet.of(Role.USER, Role.ADMIN, Role.OPTIONAL)
 				: ImmutableSet.of(Role.USER, Role.OPTIONAL);
 
 		User user = userService.getCurrentUser();
-		UserPrincipal userPrincipal = new UserPrincipal(user.getUserId(), user.getEmail());
+		UserPrincipal userPrincipal = new GoogleUserPrincipal(user.getUserId(), user.getEmail());
 		return new AuthSecurityContext(
 				userPrincipal,
 				request.isSecure(),
 				roles,
-				"GAE"
+				GAE_AUTH_SCHEME
 		);
 	}
 
@@ -175,11 +200,11 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 
 		if (rolesAllowed.contains(Role.OPTIONAL)) {
 			return new AuthSecurityContext(
-								null,
-								request.isSecure(),
-								ImmutableSet.of(Role.OPTIONAL),
-								"OAuth2.0"
-						);
+					null,
+					request.isSecure(),
+					ImmutableSet.of(Role.OPTIONAL),
+					UNAUTHENTICATED_AUTH_SCHEME
+			);
 		}
 
 		throw new WebApplicationException(cause, response);

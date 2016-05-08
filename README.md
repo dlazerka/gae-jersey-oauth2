@@ -1,6 +1,12 @@
 # GAE Jersey OAuth2.0
 
-Authentication using OAuth2.0, integrated with Google App Engine and Jersey servlet container. 
+Authentication using OAuth, integrated with Google App Engine and Jersey servlet container.
+
+Includes token verifiers for <b>Google Sign In</b> and <b>Facebook Login</b>, but you can specify your own
+implementation.
+
+Extensible as much as possible, so you can swap any class with your own implementation.
+
 
 
 # Set up

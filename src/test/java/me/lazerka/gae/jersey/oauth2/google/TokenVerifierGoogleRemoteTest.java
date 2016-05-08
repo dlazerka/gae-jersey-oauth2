@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package me.lazerka.gae.jersey.oauth2;
+package me.lazerka.gae.jersey.oauth2.google;
 
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.appengine.api.urlfetch.HTTPRequest;
@@ -41,21 +41,21 @@ import static org.testng.Assert.fail;
 /**
  * @author Dzmitry Lazerka
  */
-public class TokenVerifierRemoteTest {
+public class TokenVerifierGoogleRemoteTest {
 	String token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiIxMTAxNjk0ODQ0NzQzODYyNzYzMzQiLCJhenAiOiIxMDA4NzE5OTcwOTc4LWhiMjRuMmRzdGI0MG80NWQ0ZmV1bzJ1a3FtY2M2MzgxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiZW1haWxfdmVyaWZpZWQiOiJ0cnVlIiwiZW1haWwiOiJiaWxsZDE2MDBAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVGVzdCIsImF1ZCI6IjEwMDg3MTk5NzA5NzgtaGIyNG4yZHN0YjQwbzQ1ZDRmZXVvMnVrcW1jYzYzODEuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJpYXQiOjE0MzM5NzgzNTMsImV4cCI6MTQzMzk4MTk1M30.GC1hAjr8DbAT5CkEL19wCUqZHsDH1SklFPL2ZJxezW8";
 
 	ContainerRequest request = mock(ContainerRequest.class);
 	HTTPResponse remoteResponse = mock(HTTPResponse.class);
 
-	TokenVerifierRemote unit;
+	TokenVerifierGoogleRemote unit;
 
 	@BeforeMethod
 	public void setUp() throws URISyntaxException, IOException {
-		unit = new TokenVerifierRemote();
-
-		unit.urlFetchService = mock(URLFetchService.class);
-		unit.jsonFactory = JacksonFactory.getDefaultInstance();
-		unit.oauthClientId = "web-client-id.apps.googleusercontent.com";
+		unit = new TokenVerifierGoogleRemote(
+				mock(URLFetchService.class),
+				JacksonFactory.getDefaultInstance(),
+				"web-client-id.apps.googleusercontent.com"
+		);
 
 		when(request.getRequestUri())
 				.thenReturn(URI.create("https://example.com"));
