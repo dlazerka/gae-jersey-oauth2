@@ -14,19 +14,21 @@
  * limitations under the License.
  */
 
-package me.lazerka.gae.jersey.oauth2;
+package me.lazerka.gae.jersey.oauth2.google;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 import org.joda.time.DateTime;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.inject.Provider;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
@@ -34,9 +36,7 @@ import java.security.InvalidKeyException;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.*;
 import static org.powermock.api.mockito.PowerMockito.*;
 import static org.testng.Assert.fail;
 
@@ -49,18 +49,22 @@ import static org.testng.Assert.fail;
  * @author Dzmitry Lazerka
  */
 @PrepareForTest(value = {GoogleIdTokenVerifier.class, GoogleIdToken.class})
-public class TokenVerifierSignatureTest extends PowerMockTestCase {
+public class TokenVerifierGoogleSignatureTest extends PowerMockTestCase {
+
 	String token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiIxMTAxNjk0ODQ0NzQzODYyNzYzMzQiLCJhenAiOiIxMDA4NzE5OTcwOTc4LWhiMjRuMmRzdGI0MG80NWQ0ZmV1bzJ1a3FtY2M2MzgxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiZW1haWxfdmVyaWZpZWQiOiJ0cnVlIiwiZW1haWwiOiJiaWxsZDE2MDBAZ21haWwuY29tIiwibmFtZSI6IlRlc3QgVGVzdCIsImF1ZCI6IjEwMDg3MTk5NzA5NzgtaGIyNG4yZHN0YjQwbzQ1ZDRmZXVvMnVrcW1jYzYzODEuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJpYXQiOjE0MzM5NzgzNTMsImV4cCI6MTQzMzk4MTk1M30.GC1hAjr8DbAT5CkEL19wCUqZHsDH1SklFPL2ZJxezW8";
 
-	TokenVerifierSignature unit;
+	static final DateTime NOW = DateTime.parse("2015-12-15T20:43:28Z");
+
+	TokenVerifierGoogleSignature unit;
 	private GoogleIdToken idToken;
 
 	@BeforeMethod
 	public void setUp() throws URISyntaxException, IOException {
-		unit = new TokenVerifierSignature();
-		unit.tokenVerifier = mock(GoogleIdTokenVerifier.class);
-		unit.now = DateTime.parse("2015-12-15T20:43:28Z");
-		when(unit.tokenVerifier.getJsonFactory())
+		unit = new TokenVerifierGoogleSignature(
+				mock(GoogleIdTokenVerifier.class),
+				new NowProvider()
+		);
+		when(unit.verifier.getJsonFactory())
 				.thenReturn(JacksonFactory.getDefaultInstance());
 
 		idToken = mock(GoogleIdToken.class);
@@ -74,18 +78,19 @@ public class TokenVerifierSignatureTest extends PowerMockTestCase {
 
 	@Test
 	public void testVerifyOk() throws Exception {
-		when(unit.tokenVerifier.verify(idToken))
+		when(unit.verifier.verify(idToken))
 				.thenReturn(true);
 		UserPrincipal userPrincipal = unit.verify(token);
 
 		assertThat(userPrincipal.getId(), is("1234"));
+		assertThat(userPrincipal.getEmail(), is("test@example.com"));
 	}
 
 	@Test
 	public void testVerify() throws Exception {
-		when(unit.tokenVerifier.verify(token))
+		when(unit.verifier.verify(token))
 				.thenReturn(null);
-		when(idToken.verifyTime(eq(unit.now.getMillis()), anyLong()))
+		when(idToken.verifyTime(eq(NOW.getMillis()), anyLong()))
 				.thenReturn(false);
 
 		try {
@@ -95,5 +100,15 @@ public class TokenVerifierSignatureTest extends PowerMockTestCase {
 			return;
 		}
 		fail();
+	}
+
+	/**
+	 * Simply returns current time. Helps mocking in unit-tests.
+	 */
+	static class NowProvider implements Provider<DateTime> {
+		@Override
+		public DateTime get() {
+			return NOW;
+		}
 	}
 }

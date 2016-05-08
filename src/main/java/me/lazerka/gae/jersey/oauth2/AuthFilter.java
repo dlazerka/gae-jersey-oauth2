@@ -44,6 +44,7 @@ import java.util.Set;
 
 import static com.google.appengine.api.utils.SystemProperty.Environment.Value.Development;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Checks requests whether they are authenticated using either GAE or OAuth authentication.
@@ -54,11 +55,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 	private static final Logger logger = LoggerFactory.getLogger(AuthFilter.class);
 
-	@Inject
-	UserService userService;
+	public static final String PROVIDER_HEADER = "X-Authorization-Provider";
 
 	@Inject
-	TokenVerifier tokenVerifier;
+	Set<TokenVerifier> tokenVerifiers;
+
+	@Inject
+	UserService userService;
 
 	Set<String> rolesAllowed;
 
@@ -75,6 +78,7 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 	@Nonnull
 	public ContainerRequest filter(ContainerRequest request) {
 		checkNotNull(rolesAllowed);
+		checkState(!tokenVerifiers.isEmpty(), "No tokenVerifiers configured");
 
 		AuthSecurityContext securityContext = getSecurityContext(request);
 
@@ -105,21 +109,27 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 
 		// Check OAuth authentication.
 		String authorizationHeader = request.getHeaderValue("Authorization");
-		if (authorizationHeader != null) {
-			if (authorizationHeader.startsWith("Bearer ")) {
-				String token = authorizationHeader.substring("Bearer ".length());
-				return useOauthAuthentication(request, token);
-			} else {
-				logger.warn("Authorization should use Bearer protocol {}", request.getPath());
-				return throwUnauthenticatedIfNotOptional(request, "Not Bearer Authorization", null);
-			}
+		if (authorizationHeader == null) {
+			logger.warn("No credentials provided for {}", request.getPath());
+			return throwUnauthenticatedIfNotOptional(request, "No credentials provided", null);
 		}
 
-		logger.warn("No credentials provided for {}", request.getPath());
-		return throwUnauthenticatedIfNotOptional(request, "No credentials provided", null);
+		if (authorizationHeader.startsWith("Bearer ")) {
+			String token = authorizationHeader.substring("Bearer ".length());
+			return useOauthAuthentication(request, token);
+		} else {
+			logger.warn("Authorization should use Bearer protocol {}", request.getPath());
+			return throwUnauthenticatedIfNotOptional(request, "Not Bearer Authorization", null);
+		}
 	}
 
 	private AuthSecurityContext useOauthAuthentication(ContainerRequest request, String token) {
+		TokenVerifier tokenVerifier = findTokenVerifier(request);
+
+		if (tokenVerifier == null) {
+			return throwUnauthenticatedIfNotOptional(request, "Cannot found suitable TokenVerifier", null);
+		}
+
 		logger.trace("Authenticating OAuth2.0 user...");
 		try {
 			UserPrincipal userPrincipal = tokenVerifier.verify(token);
@@ -127,7 +137,7 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 					userPrincipal,
 					request.isSecure(),
 					ImmutableSet.of(Role.USER, Role.OPTIONAL),
-					"OAuth2.0"
+					tokenVerifier.getAuthenticationScheme()
 			);
 		} catch (GeneralSecurityException e) {
 			logger.info(e.getClass().getName() + ": " + e.getMessage());
@@ -136,6 +146,18 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 			logger.error("IOException verifying OAuth token", e);
 			return throwUnauthenticatedIfNotOptional(request, "Error verifying OAuth2.0 token", e);
 		}
+	}
+
+	private TokenVerifier findTokenVerifier(ContainerRequest request) {
+		String provider = request.getHeaderValue(PROVIDER_HEADER);
+		for (TokenVerifier tokenVerifier : tokenVerifiers) {
+			if (tokenVerifier.canHandle(provider)) {
+				return tokenVerifier;
+			}
+		}
+
+		logger.warn("No TokenVerifier for provider {}", provider);
+		return null;
 	}
 
 	private AuthSecurityContext useGaeAuthentication(ContainerRequest request) {

@@ -49,13 +49,15 @@ public class AuthFilterTest {
 	ContainerRequest request;
 
 	AuthFilter unit;
+	private TokenVerifier verifierMock;
 
 	@BeforeMethod
 	public void setUp() throws URISyntaxException, IOException {
 		request = mock(ContainerRequest.class);
 
 		unit = new AuthFilter();
-		unit.tokenVerifier = mock(TokenVerifier.class);
+		verifierMock = mock(TokenVerifier.class);
+		unit.tokenVerifiers = ImmutableSet.of(verifierMock);
 
 		unit.setRolesAllowed(ImmutableSet.of(Role.USER));
 		unit.userService = mock(UserService.class);
@@ -71,8 +73,12 @@ public class AuthFilterTest {
 		when(request.isSecure()).thenReturn(true);
 		when(request.getHeaderValue("Authorization")).thenReturn("Bearer " + token);
 
-		when(unit.tokenVerifier.verify(token))
+		when(verifierMock.canHandle(null))
+				.thenReturn(true);
+		when(verifierMock.verify(token))
 				.thenReturn(new UserPrincipal("123", "test@example.com"));
+		when(verifierMock.getAuthenticationScheme())
+				.thenReturn("TestScheme");
 
 		unit.filter(request);
 
@@ -82,7 +88,7 @@ public class AuthFilterTest {
 		SecurityContext securityContext = captor.getValue();
 		UserPrincipal expectedPrincipal = new UserPrincipal("123", "test@example.com");
 		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(expectedPrincipal));
-		assertThat(securityContext.getAuthenticationScheme(), is("OAuth2.0"));
+		assertThat(securityContext.getAuthenticationScheme(), is("TestScheme"));
 		assertThat(securityContext.isSecure(), is(true));
 		assertThat(securityContext.isUserInRole(Role.OPTIONAL), is(true));
 		assertThat(securityContext.isUserInRole(Role.USER), is(true));
@@ -124,7 +130,9 @@ public class AuthFilterTest {
 		when(request.isSecure()).thenReturn(true);
 		when(request.getHeaderValue("Authorization")).thenReturn("Bearer " + token);
 
-		when(unit.tokenVerifier.verify(token))
+		when(verifierMock.canHandle(null))
+				.thenReturn(true);
+		when(verifierMock.verify(token))
 				.thenThrow(new InvalidKeyException("Test msg"));
 
 		try {

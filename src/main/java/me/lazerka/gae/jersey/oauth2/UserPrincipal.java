@@ -17,6 +17,7 @@
 package me.lazerka.gae.jersey.oauth2;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.security.Principal;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -29,10 +30,12 @@ public class UserPrincipal implements Principal {
 	private final String id;
 	private final String email;
 
-	public UserPrincipal(@Nonnull String id, @Nonnull String email) {
+	public UserPrincipal(@Nonnull String id, @Nullable String email) {
 		this.id = checkNotNull(id);
-		this.email = checkNotNull(email);
-		checkArgument(email.contains("@"), "Wrong order of arguments");
+		this.email = email;
+		if (email != null) {
+			checkArgument(email.contains("@"), "Wrong order of arguments");
+		}
 	}
 
 	@Nonnull
@@ -46,7 +49,7 @@ public class UserPrincipal implements Principal {
 		return id;
 	}
 
-	@Nonnull
+	@Nullable
 	public String getEmail() {
 		return email;
 	}

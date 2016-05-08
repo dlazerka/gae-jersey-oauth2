@@ -14,49 +14,69 @@
  * limitations under the License.
  */
 
-package me.lazerka.gae.jersey.oauth2;
+package me.lazerka.gae.jersey.oauth2.google;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import me.lazerka.gae.jersey.oauth2.TokenVerifier;
+import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
+import javax.inject.Provider;
+import javax.inject.Singleton;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 
-import static org.joda.time.DateTimeZone.UTC;
-
 /**
- * Filter that verifies OAuth token using public key signature check.
+ * Verifies OAuth token using public key signature check.
  *
  * Utilizes google-api-client for that.
  *
  * @see <a href="https://developers.google.com/identity/sign-in/android/backend-auth">documentation</a>.
  * @author Dzmitry Lazerka
  */
-public class TokenVerifierSignature implements TokenVerifier {
-	@Inject
-	GoogleIdTokenVerifier tokenVerifier;
+@Singleton
+public class TokenVerifierGoogleSignature implements TokenVerifier {
+	private static final Logger logger = LoggerFactory.getLogger(TokenVerifierGoogleSignature.class);
 
-	DateTime now = DateTime.now(UTC);
+	public static final String AUTH_SCHEME = "GoogleSignIn/Signature";
+
+	final GoogleIdTokenVerifier verifier;
+	final Provider<DateTime> nowProvider;
+
+	public TokenVerifierGoogleSignature(
+			GoogleIdTokenVerifier verifier,
+			Provider<DateTime> nowProvider
+	) {
+		this.verifier = verifier;
+		this.nowProvider = nowProvider;
+	}
+
+	@Override
+	public boolean canHandle(String authProvider) {
+		return authProvider == null || "google".equals(authProvider);
+	}
 
 	@Override
 	public UserPrincipal verify(String token) throws IOException, GeneralSecurityException {
 
 		GoogleIdToken idToken;
 		try {
-			idToken = GoogleIdToken.parse(tokenVerifier.getJsonFactory(), token);
+			idToken = GoogleIdToken.parse(verifier.getJsonFactory(), token);
 		} catch (IllegalArgumentException e) {
 			throw new InvalidKeyException("Cannot parse token as JWS");
 		}
 
-		if (!tokenVerifier.verify(idToken)) {
+		if (!verifier.verify(idToken)) {
 			String email = idToken.getPayload().getEmail();
 
 			// Give meaningful message for the most common case.
-			if (!idToken.verifyTime(now.getMillis(), tokenVerifier.getAcceptableTimeSkewSeconds())) {
+			DateTime now = nowProvider.get();
+			if (!idToken.verifyTime(now.getMillis(), verifier.getAcceptableTimeSkewSeconds())) {
 				throw new InvalidKeyException("Token expired for allegedly " + email);
 			}
 
@@ -65,5 +85,10 @@ public class TokenVerifierSignature implements TokenVerifier {
 
 		Payload payload = idToken.getPayload();
 		return new UserPrincipal(payload.getSubject(), payload.getEmail());
+	}
+
+	@Override
+	public String getAuthenticationScheme() {
+		return AUTH_SCHEME;
 	}
 }

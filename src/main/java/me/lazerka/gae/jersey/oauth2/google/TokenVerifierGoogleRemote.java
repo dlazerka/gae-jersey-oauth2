@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package me.lazerka.gae.jersey.oauth2;
+package me.lazerka.gae.jersey.oauth2.google;
 
 import com.google.api.client.auth.oauth2.TokenErrorResponse;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
@@ -23,10 +23,12 @@ import com.google.appengine.api.urlfetch.HTTPRequest;
 import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.base.Stopwatch;
+import me.lazerka.gae.jersey.oauth2.TokenVerifier;
+import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.net.URL;
@@ -42,27 +44,36 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 /**
  * Filter that verifies token by making HTTPS call to Google endpoint, so Google servers verify it.
  *
- * This is pretty safe, as long as done through HTTPS, but adds latency.
+ * This MUST be done through HTTPS.
  *
- * @see <a href="https://developers.google.com/identity/sign-in/android/backend-auth">documentation</a>.
+ * Documentation: https://developers.google.com/identity/sign-in/android/backend-auth
+ *
  * @author Dzmitry Lazerka
  */
-public class TokenVerifierRemote implements TokenVerifier {
-	private static final Logger logger = LoggerFactory.getLogger(TokenVerifierRemote.class);
+@Singleton
+public class TokenVerifierGoogleRemote implements TokenVerifier {
+	private static final Logger logger = LoggerFactory.getLogger(TokenVerifierGoogleRemote.class);
 
-	private static final UriBuilder endpoint =
+	public static final String AUTH_SCHEME = "GoogleSignIn/Remote";
+
+	protected static final UriBuilder endpoint =
 			UriBuilder.fromUri("https://www.googleapis.com/oauth2/v3/tokeninfo")
-					.queryParam("id_token={token}");
+					.queryParam("id_token", "{token}");
 
-	@Inject
-	URLFetchService urlFetchService;
+	final URLFetchService urlFetchService;
+	final JsonFactory jsonFactory;
+	final String oauthClientId;
 
-	@Inject
-	JsonFactory jsonFactory;
+	public TokenVerifierGoogleRemote(URLFetchService urlFetchService, JsonFactory jsonFactory, String oauthClientId) {
+		this.urlFetchService = urlFetchService;
+		this.jsonFactory = jsonFactory;
+		this.oauthClientId = oauthClientId;
+	}
 
-	@Inject
-	@OauthClientId
-	String oauthClientId;
+	@Override
+	public boolean canHandle(String authProvider) {
+		return authProvider == null || "google".equals(authProvider);
+	}
 
 	@Override
 	public UserPrincipal verify(String authToken) throws IOException, InvalidKeyException {
@@ -116,5 +127,10 @@ public class TokenVerifierRemote implements TokenVerifier {
 		}
 
 		return new UserPrincipal(payload.getSubject(), payload.getEmail());
+	}
+
+	@Override
+	public String getAuthenticationScheme() {
+		return AUTH_SCHEME;
 	}
 }

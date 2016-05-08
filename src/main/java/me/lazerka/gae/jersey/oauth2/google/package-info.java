@@ -14,22 +14,9 @@
  * limitations under the License.
  */
 
-package me.lazerka.gae.jersey.oauth2;
-
-import com.google.inject.BindingAnnotation;
-
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
-import static java.lang.annotation.ElementType.*;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
-
-
 /**
- * String members annotated with this will be bound to OAuth Client Id.
- * @see OauthModule
+ * Implementation of Google Sign In flow for authenticating user.
+ *
+ * @author Dzmitry Lazerka
  */
-@BindingAnnotation
-@Target({ FIELD, PARAMETER, METHOD })
-@Retention(RUNTIME)
-public @interface OauthClientId {}
+package me.lazerka.gae.jersey.oauth2.google;
