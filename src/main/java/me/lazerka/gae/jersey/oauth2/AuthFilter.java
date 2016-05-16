@@ -111,6 +111,10 @@ public class AuthFilter implements ResourceFilter, ContainerRequestFilter {
 		}
 
 		// Check OAuth authentication.
+		return useOauthAuthentication(request);
+	}
+
+	protected AuthSecurityContext useOauthAuthentication(ContainerRequest request) {
 		String authorizationHeader = request.getHeaderValue("Authorization");
 		if (authorizationHeader == null) {
 			logger.warn("No credentials provided for {}", request.getPath());
