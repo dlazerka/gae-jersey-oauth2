@@ -108,6 +108,6 @@ public class AuthFilterFactory implements ResourceFilterFactory {
 				methodPath = ((Path) annotation).value();
 			}
 		}
-		logger.info("{} {}{} auth: {}", httpMethodsUsed, resourcePath, methodPath, filter == null ? "none" : filter);
+		logger.info("{} {} {} auth: {}", httpMethodsUsed, resourcePath, methodPath, filter == null ? "none" : filter);
 	}
 }
