@@ -32,6 +32,7 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.inject.Provider;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -58,30 +59,30 @@ public class OauthModule extends AbstractModule {
 			"accounts.google.com",
 			"https://accounts.google.com");
 
-	public static final String GOOGLE_CLIENT_ID_FILE_PATH = "WEB-INF/keys/google.signin.client_id.key";
+	private final String googleClientId;
+	private final String facebookAppId;
+	private final String facebookAppSecret;
 
-	public static final String FACEBOOK_APP_ID_FILE_PATH = "WEB-INF/keys/facebook.app_id.key";
-	public static final String FACEBOOK_APP_SECRET_FILE_PATH = "WEB-INF/keys/secret/facebook.app_secret.key";
-
-	private String googleClientId;
-
-	private String facebookAppId;
-	private String facebookAppSecret;
-
-
-	/** Reads Client ID from file {@link #GOOGLE_CLIENT_ID_FILE_PATH}. */
-	public OauthModule() {
+	public OauthModule(
+			@Nonnull File googleClientId,
+			@Nonnull File facebookAppId,
+			@Nonnull File facebookAppSecret
+	) {
 		this(
-				readKey(new File(GOOGLE_CLIENT_ID_FILE_PATH)),
-				readKey(new File(FACEBOOK_APP_ID_FILE_PATH)),
-				readKey(new File(FACEBOOK_APP_SECRET_FILE_PATH))
+				readKey(googleClientId),
+				readKey(facebookAppId),
+				readKey(facebookAppSecret)
 		);
 	}
 
 	/**
 	 * @param googleClientId Issued by authorization server.
 	 */
-	public OauthModule(String googleClientId, String facebookAppId, String facebookAppSecret) {
+	public OauthModule(
+			@Nonnull String googleClientId,
+			@Nonnull String facebookAppId,
+			@Nonnull String facebookAppSecret
+	) {
 		checkArgument(googleClientId.endsWith(".apps.googleusercontent.com"), "Must end with '.apps.googleusercontent.com'");
 		this.googleClientId = checkNotNull(googleClientId);
 		this.facebookAppId = checkNotNull(facebookAppId);
