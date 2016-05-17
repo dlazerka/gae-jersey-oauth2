@@ -18,12 +18,10 @@ package me.lazerka.gae.jersey.oauth2.facebook;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.client.auth.oauth2.TokenErrorResponse;
 import com.google.appengine.api.urlfetch.HTTPRequest;
 import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableMap;
 import me.lazerka.gae.jersey.oauth2.TokenVerifier;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -33,9 +31,9 @@ import javax.annotation.Nullable;
 import javax.inject.Provider;
 import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.security.InvalidKeyException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.appengine.api.urlfetch.FetchOptions.Builder.validateCertificate;
@@ -58,26 +56,7 @@ public class TokenVerifierFacebookInspectToken implements TokenVerifier {
 
 	public static final String AUTH_SCHEME = "Facebook/InspectToken";
 
-	private static final UriBuilder accessTokenEndpoint =
-			UriBuilder.fromUri("https://graph.facebook.com/oauth/access_token")
-					.queryParam("client_id", "{appId}")
-					.queryParam("client_secret", "{clientSecret}")
-					.queryParam("grant_type", "client_credentials");
-//					.queryParam("redirect_uri={redirect-uri}");
-//					.queryParam("code={code-parameter}");
-
-	protected static final UriBuilder accessTokenEndpoint2 =
-			UriBuilder.fromUri("https://graph.facebook.com//oauth/access_token")
-					.queryParam("client_id", "{appId}")
-					.queryParam("client_secret", "{clientSecret}")
-					.queryParam("grant_type", "fb_exchange_token")
-					.queryParam("fb_exchange_token", "{short-lived-token}");
-
-
-	private static final UriBuilder debugTokenEndpoint =
-			UriBuilder.fromUri("https://graph.facebook.com/v2.6/debug_token")
-					.queryParam("input_token", "{inputToken}")
-					.queryParam("access_token", "{appId}|{appSecret}");
+	private static final URI GRAPH_API = URI.create("https://graph.facebook.com/v2.6/");
 
 	final URLFetchService urlFetchService;
 	final ObjectMapper jackson;
@@ -108,13 +87,28 @@ public class TokenVerifierFacebookInspectToken implements TokenVerifier {
 	public FacebookUserPrincipal verify(String userAccessToken) throws IOException, InvalidKeyException {
 		logger.trace("Requesting endpoint to validate token");
 
-		Map<String, String> params = ImmutableMap.of(
-				"inputToken", userAccessToken,
-				"appId", appId,
-				"appSecret", appSecret
-		);
+		URL url = UriBuilder.fromUri(GRAPH_API)
+				.path("debug_token")
+				.queryParam("input_token", userAccessToken)
+				.queryParam("access_token", "{appId}|{appSecret}")
+				.build(appId, appSecret)
+				.toURL();
 
-		URL url = debugTokenEndpoint.buildFromMap(params).toURL();
+//		UriBuilder.fromUri(GRAPH_API)
+//				.path("oauth/access_token")
+//				.queryParam("client_id", "{appId}")
+//				.queryParam("client_secret", "{clientSecret}")
+//				.queryParam("grant_type", "client_credentials")
+//				// also can be used
+//				.queryParam("redirect_uri={redirect-uri}")
+//				.queryParam("code={code-parameter}");
+//
+//		UriBuilder.fromUri(GRAPH_API).path("oauth/access_token")
+//				.queryParam("client_id", "{appId}")
+//				.queryParam("client_secret", "{clientSecret}")
+//				.queryParam("grant_type", "fb_exchange_token")
+//				.queryParam("fb_exchange_token", "{short-lived-token}");
+
 
 		HTTPRequest httpRequest = new HTTPRequest(url, GET, validateCertificate());
 
@@ -140,7 +134,7 @@ public class TokenVerifierFacebookInspectToken implements TokenVerifier {
 						msg += ": " + error.findPath("message").textValue();
 					}
 				} catch (IOException e) {
-					logger.warn("Cannot parse response as " + TokenErrorResponse.class.getSimpleName());
+					logger.warn("Cannot parse response as error");
 				}
 			}
 

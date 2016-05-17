@@ -26,7 +26,6 @@ import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.base.Splitter;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import me.lazerka.gae.jersey.oauth2.TokenVerifier;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -38,12 +37,12 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Provider;
 import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.appengine.api.urlfetch.FetchOptions.Builder.validateCertificate;
@@ -67,19 +66,7 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 
 	public static final String AUTH_SCHEME = "Facebook/SignedRequest";
 
-	protected static final UriBuilder accessTokenEndpoint =
-			UriBuilder.fromUri("https://graph.facebook.com/v2.6/oauth/access_token")
-					.queryParam("client_id", "{appId}")
-					.queryParam("client_secret", "{appSecret}")
-					.queryParam("code", "{code}")
-					.queryParam("grant_type", "client_credentials");
-//					.queryParam("redirect_uri={redirect-uri}");
-
-//	protected static final UriBuilder userEndpoint =
-//			UriBuilder.fromUri("https://graph.facebook.com/v2.6/user")
-//					.segment("{userId}")
-//					.queryParam("access_token", "{appId}");
-
+	private static final URI GRAPH_API = URI.create("https://graph.facebook.com/v2.6/");
 
 	private final Mac hmac;
 
@@ -150,13 +137,18 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 	 * Exchange `code` for long-lived access token. This serves as verification for `code` expiration too.
 	 */
 	protected String exchangeCodeForAppAccessToken(String code) throws IOException, InvalidKeyException {
-		Map<String, String> params = ImmutableMap.of(
-				"appId", appId,
-				"appSecret", appSecret,
-				"code", code
-		);
+		URL url = UriBuilder.fromUri(GRAPH_API).path("/oauth/access_token")
+				.queryParam("client_id", appId)
+				.queryParam("client_secret", appSecret)
+				.queryParam("code", code)
+				.queryParam("grant_type", "client_credentials")
+				// .queryParam("redirect_uri={redirect-uri}");
+				.build()
+				.toURL();
 
-		URL url = accessTokenEndpoint.buildFromMap(params).toURL();
+		//	UriBuilder.fromUri("https://graph.facebook.com/v2.6/user")
+		//	    .segment("{userId}")
+		//		.queryParam("access_token", "{appId}");
 
 		HTTPRequest httpRequest = new HTTPRequest(url, GET, validateCertificate());
 

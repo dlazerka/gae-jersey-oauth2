@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Singleton;
 import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.security.InvalidKeyException;
 import java.util.Collections;
@@ -56,9 +57,7 @@ public class TokenVerifierGoogleRemote implements TokenVerifier {
 
 	public static final String AUTH_SCHEME = "GoogleSignIn/Remote";
 
-	protected static final UriBuilder endpoint =
-			UriBuilder.fromUri("https://www.googleapis.com/oauth2/v3/tokeninfo")
-					.queryParam("id_token", "{token}");
+	private static final URI TOKEN_INFO = URI.create("https://www.googleapis.com/oauth2/v3/tokeninfo");
 
 	final URLFetchService urlFetchService;
 	final JsonFactory jsonFactory;
@@ -79,7 +78,10 @@ public class TokenVerifierGoogleRemote implements TokenVerifier {
 	public UserPrincipal verify(String authToken) throws IOException, InvalidKeyException {
 		logger.trace("Requesting endpoint to validate token");
 
-		URL url = endpoint.build(authToken).toURL();
+		URL url = UriBuilder.fromUri(TOKEN_INFO)
+				.queryParam("id_token", authToken)
+				.build()
+				.toURL();
 
 		HTTPRequest httpRequest = new HTTPRequest(url, GET, validateCertificate());
 
