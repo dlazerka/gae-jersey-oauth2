@@ -1,6 +1,6 @@
 # GAE Jersey OAuth2.0
 
-Authentication using OAuth, integrated with Google App Engine and Jersey servlet container.
+Authentication using OAuth, integrated with Google App Engine and Jersey 1.x servlet container.
 
 Includes token verifiers for <b>Google Sign In</b> and <b>Facebook Login</b>, but you can specify your own
 implementation.
@@ -17,12 +17,12 @@ Extensible as much as possible, so you can swap any class with your own implemen
 		<dependency>
 			<groupId>me.lazerka.gae-jersey-oauth2</groupId>
 			<artifactId>gae-jersey-oauth2</artifactId>
-			<version>1.2</version>
+			<version>2.1</version>
 		</dependency>
 	```
 	* Gradle:
 	```groovy
-		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:1.2'
+		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:2.1'
 	```
 2. Install Guice module:
 
