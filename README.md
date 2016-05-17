@@ -65,3 +65,12 @@ public class UserService {
 Resources annotated with `@PermitAll` do not even check authentication,
 so resources annotated with it will not get any `SecurityContext` even if user is
 authenticated. See `Role.OPTIONAL`.
+
+# Customize
+You can swap pretty much anything with your own implementation:
+* `OauthModule` is optional, feel free to use your own. 
+* `AuthFilterFactory` can be customized by providing your own implementation to Jersey parameters.
+* `AuthFilter` can be customized by binding your own implementation in Guice module: 
+`bind(AuthFilter.class).to(MyAuthFilter.class);`.
+* You can add other providers by adding your own `TokenVerifier`s using Guice Multibindings 
+(see example `OauthModule`). 
