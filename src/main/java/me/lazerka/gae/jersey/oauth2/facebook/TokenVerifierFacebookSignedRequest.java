@@ -17,14 +17,9 @@
 package me.lazerka.gae.jersey.oauth2.facebook;
 
 import com.fasterxml.jackson.core.Base64Variants;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.client.auth.oauth2.TokenErrorResponse;
-import com.google.appengine.api.urlfetch.HTTPRequest;
-import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.base.Splitter;
-import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import me.lazerka.gae.jersey.oauth2.TokenVerifier;
 import org.joda.time.DateTime;
@@ -35,18 +30,12 @@ import javax.annotation.Nullable;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Provider;
-import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-import static com.google.appengine.api.urlfetch.FetchOptions.Builder.validateCertificate;
-import static com.google.appengine.api.urlfetch.HTTPMethod.GET;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -66,8 +55,6 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 
 	public static final String AUTH_SCHEME = "Facebook/SignedRequest";
 
-	private static final URI GRAPH_API = URI.create("https://graph.facebook.com/v2.6/");
-
 	private final Mac hmac;
 
 	final URLFetchService urlFetchService;
@@ -75,6 +62,7 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 	final String appId;
 	final String appSecret;
 	final Provider<DateTime> nowProvider;
+	final FacebookFetcher fetcher;
 
 	public TokenVerifierFacebookSignedRequest(
 			URLFetchService urlFetchService,
@@ -88,6 +76,7 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 		this.appId = appId;
 		this.appSecret = appSecret;
 		this.nowProvider = nowProvider;
+		this.fetcher = new FacebookFetcher(appId, appSecret, jackson, urlFetchService);
 
 		try {
 			SecretKeySpec signingKey = new SecretKeySpec(appSecret.getBytes(UTF_8), "HmacSHA1");
@@ -126,66 +115,15 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 			throw new InvalidKeyException("Signature invalid");
 		}
 
-		String accessToken = exchangeCodeForAppAccessToken(signedRequest.code);
+		// We still need to verify expiration somehow. The only way is to ask Facebook.
+
+		// Exchange `code` for long-lived access token. This serves as verification for `code` expiration too.
+		AccessTokenResponse response = fetcher.fetchAccessToken(signedRequest.code);
+		logger.debug("Access token expires in {}s", response.expiresIn);
 
 		// Not fetching email, because maybe we won't need to, if ID is enough.
 
-		return new FacebookUserPrincipal(signedRequest.userId, accessToken);
-	}
-
-	/**
-	 * Exchange `code` for long-lived access token. This serves as verification for `code` expiration too.
-	 */
-	protected String exchangeCodeForAppAccessToken(String code) throws IOException, InvalidKeyException {
-		URL url = UriBuilder.fromUri(GRAPH_API).path("/oauth/access_token")
-				.queryParam("client_id", appId)
-				.queryParam("client_secret", appSecret)
-				.queryParam("code", code)
-				.queryParam("grant_type", "client_credentials")
-				// .queryParam("redirect_uri={redirect-uri}");
-				.build()
-				.toURL();
-
-		//	UriBuilder.fromUri("https://graph.facebook.com/v2.6/user")
-		//	    .segment("{userId}")
-		//		.queryParam("access_token", "{appId}");
-
-		HTTPRequest httpRequest = new HTTPRequest(url, GET, validateCertificate());
-
-		Stopwatch stopwatch = Stopwatch.createStarted();
-		HTTPResponse response = urlFetchService.fetch(httpRequest);
-		logger.debug("Call to /access_token took {}ms", stopwatch.elapsed(TimeUnit.MILLISECONDS));
-
-		int responseCode = response.getResponseCode();
-
-		// Like "access_token=1753927518187309|AJNQIuA346773XeyTpPT27pcq2I"
-		String content = new String(response.getContent(), UTF_8);
-
-		if (responseCode != 200) {
-			logger.warn("{}: {}", responseCode, content);
-
-			String msg = "Endpoint response code " + responseCode;
-
-			// Something is wrong with our request.
-			// If signature is invalid, then response code is 403.
-			if (responseCode >= 400 && responseCode < 500) {
-				try {
-					JsonNode tree = jackson.readTree(content);
-					JsonNode error = tree.findPath("error");
-					if (!error.isMissingNode()) {
-						msg += ": " + error.findPath("message").textValue();
-					}
-				} catch (IOException e) {
-					logger.warn("Cannot parse response as " + TokenErrorResponse.class.getSimpleName());
-				}
-			}
-
-			throw new InvalidKeyException(msg);
-		}
-
-		AccessTokenResponse accessTokenResponse = jackson.readValue(content, AccessTokenResponse.class);
-
-		return accessTokenResponse.accessToken;
+		return new FacebookUserPrincipal(signedRequest.userId, response);
 	}
 
 	@Override

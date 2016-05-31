@@ -21,7 +21,6 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 import org.joda.time.DateTime;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
@@ -87,7 +86,7 @@ public class TokenVerifierGoogleSignatureTest extends PowerMockTestCase {
 	}
 
 	@Test
-	public void testVerify() throws Exception {
+	public void testVerifyExpired() throws Exception {
 		when(unit.verifier.verify(token))
 				.thenReturn(null);
 		when(idToken.verifyTime(eq(NOW.getMillis()), anyLong()))

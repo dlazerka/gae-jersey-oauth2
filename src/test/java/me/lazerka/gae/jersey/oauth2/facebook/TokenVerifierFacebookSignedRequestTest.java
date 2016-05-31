@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.api.urlfetch.HTTPRequest;
 import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
+import com.google.common.io.Resources;
 import com.sun.jersey.spi.container.ContainerRequest;
 import org.joda.time.DateTime;
 import org.mockito.Mock;
@@ -31,8 +32,8 @@ import javax.inject.Provider;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Matchers.any;
@@ -81,7 +82,8 @@ public class TokenVerifierFacebookSignedRequestTest {
 
 	@Test
 	public void testVerifyOk() throws Exception {
-		byte[] content = "{\"access_token\": \"01234|testToken\", \"token_type\": \"bearer\"}".getBytes(UTF_8);
+		URL resource = getClass().getResource("access_token.response.ok.json");
+		byte[] content = Resources.toByteArray(resource);
 
 		when(remoteResponse.getResponseCode()).thenReturn(200);
 		when(remoteResponse.getContent()).thenReturn(content);
@@ -90,6 +92,6 @@ public class TokenVerifierFacebookSignedRequestTest {
 		FacebookUserPrincipal principal = unit.verify(accessToken);
 
 		assertThat(principal.getId(), is("10153390127171076"));
-		assertThat(principal.getAccessToken(), is("01234|testToken"));
+		assertThat(principal.getAccessTokenResponse().getAccessToken(), is("01234|testToken"));
 	}
 }

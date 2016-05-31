@@ -76,7 +76,7 @@ public class TokenVerifierGoogleRemoteTest {
 	}
 
 	@Test
-	public void testVerify() throws Exception {
+	public void testVerifyInvalidValue() throws Exception {
 		URL resource = getClass().getResource("remote-response.invalid-value.json");
 		byte[] content = Resources.toByteArray(resource);
 		when(remoteResponse.getResponseCode()).thenReturn(403);

@@ -1,8 +1,8 @@
 {
     "error": {
-        "message": "(#100) The parameter input_token is required",
+        "message": "(#123) Some error",
         "type": "OAuthException",
-        "code": 100,
+        "code": 123,
         "fbtrace_id": "EfL8HtfpDIo"
     }
 }

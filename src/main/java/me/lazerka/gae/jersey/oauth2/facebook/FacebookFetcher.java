@@ -18,17 +18,14 @@ package me.lazerka.gae.jersey.oauth2.facebook;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.util.Joiner;
 import com.google.appengine.api.urlfetch.HTTPRequest;
 import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.base.Stopwatch;
-import me.lazerka.gae.jersey.oauth2.TokenVerifier;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-import javax.inject.Provider;
 import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.net.URI;
@@ -42,73 +39,34 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Filter that verifies token by making HTTPS call to Facebook endpoint.
- *
+ * <p>
  * Documentation on token verification:
  * https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow#confirm
  * https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow#checktoken
- *
+ * <p>
  * Documentation on parsing signed_request: https://developers.facebook.com/docs/games/gamesonfacebook/login#parsingsr
  *
  * @author Dzmitry Lazerka
  */
-public class TokenVerifierFacebookInspectToken implements TokenVerifier {
-	private static final Logger logger = LoggerFactory.getLogger(TokenVerifierFacebookInspectToken.class);
-
-	public static final String AUTH_SCHEME = "Facebook/InspectToken";
+class FacebookFetcher {
+	private static final Logger logger = LoggerFactory.getLogger(FacebookFetcher.class);
 
 	private static final URI GRAPH_API = URI.create("https://graph.facebook.com/v2.6/");
 
-	final URLFetchService urlFetchService;
-	final ObjectMapper jackson;
 	final String appId;
 	final String appSecret;
-	final Provider<DateTime> nowProvider;
+	final ObjectMapper jackson;
+	final URLFetchService urlFetchService;
 
-	public TokenVerifierFacebookInspectToken(
-			URLFetchService urlFetchService,
-			ObjectMapper jackson,
-			String appId,
-			String appSecret,
-			Provider<DateTime> nowProvider
-	) {
-		this.urlFetchService = urlFetchService;
-		this.jackson = jackson;
+	public FacebookFetcher(String appId, String appSecret, ObjectMapper jackson, URLFetchService urlFetchService) {
 		this.appId = appId;
 		this.appSecret = appSecret;
-		this.nowProvider = nowProvider;
+		this.jackson = jackson;
+		this.urlFetchService = urlFetchService;
 	}
 
-	@Override
-	public boolean canHandle(@Nullable String authProvider) {
-		return "facebook".equals(authProvider);
-	}
-
-	@Override
-	public FacebookUserPrincipal verify(String userAccessToken) throws IOException, InvalidKeyException {
+	public String fetch(URL url) throws IOException, InvalidKeyException {
 		logger.trace("Requesting endpoint to validate token");
-
-		URL url = UriBuilder.fromUri(GRAPH_API)
-				.path("debug_token")
-				.queryParam("input_token", userAccessToken)
-				.queryParam("access_token", "{appId}|{appSecret}")
-				.build(appId, appSecret)
-				.toURL();
-
-//		UriBuilder.fromUri(GRAPH_API)
-//				.path("oauth/access_token")
-//				.queryParam("client_id", "{appId}")
-//				.queryParam("client_secret", "{clientSecret}")
-//				.queryParam("grant_type", "client_credentials")
-//				// also can be used
-//				.queryParam("redirect_uri={redirect-uri}")
-//				.queryParam("code={code-parameter}");
-//
-//		UriBuilder.fromUri(GRAPH_API).path("oauth/access_token")
-//				.queryParam("client_id", "{appId}")
-//				.queryParam("client_secret", "{clientSecret}")
-//				.queryParam("grant_type", "fb_exchange_token")
-//				.queryParam("fb_exchange_token", "{short-lived-token}");
-
 
 		HTTPRequest httpRequest = new HTTPRequest(url, GET, validateCertificate());
 
@@ -141,31 +99,39 @@ public class TokenVerifierFacebookInspectToken implements TokenVerifier {
 			throw new InvalidKeyException(msg);
 		}
 
-		DebugTokenResponse payload = jackson.readValue(content, DebugTokenResponse.class);
-
-		if (!appId.equals(payload.data.appId)) {
-			// Token is issued for another application.
-			throw new InvalidKeyException("Invalid appId: " + payload.data.appId);
-		}
-
-		DateTime now = nowProvider.get();
-		if (now.getMillis() / 1000 > payload.data.expiresAt) {
-			throw new InvalidKeyException("Token expired: " + payload.data.expiresAt);
-		}
-
-		if (!payload.data.isValid) {
-			throw new InvalidKeyException("Token invalid");
-		}
-
-		if (payload.data.userId == null || payload.data.userId.isEmpty()) {
-			throw new InvalidKeyException("No userId");
-		}
-
-		return new FacebookUserPrincipal(payload.data.userId, null); // TODO
+		return content;
 	}
 
-	@Override
-	public String getAuthenticationScheme() {
-		return AUTH_SCHEME;
+	public AccessTokenResponse fetchAccessToken(String code) throws IOException, InvalidKeyException {
+		URL url = UriBuilder.fromUri(GRAPH_API).path("/oauth/access_token")
+				.queryParam("client_id", appId)
+				.queryParam("client_secret", appSecret)
+				.queryParam("code", code)
+				.queryParam("grant_type", "client_credentials")
+				// .queryParam("redirect_uri={redirect-uri}");
+				.build()
+				.toURL();
+
+		String content = fetch(url);
+
+		return jackson.readValue(content, AccessTokenResponse.class);
+	}
+
+
+	public FacebookUser fetchUser(String accessToken) throws IOException, InvalidKeyException {
+		String fields = Joiner.on(',').join(FacebookUser.FIELDS);
+		URL url = UriBuilder.fromUri(GRAPH_API)
+				.path("me")
+				.queryParam("fields", fields)
+				.queryParam("access_token", accessToken)
+				.build()
+				.toURL();
+
+		String content = fetch(url);
+
+		FacebookUser facebookUser = jackson.readValue(content, FacebookUser.class);
+		logger.info("Fetched {}", facebookUser);
+
+		return facebookUser;
 	}
 }

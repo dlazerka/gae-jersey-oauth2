@@ -22,6 +22,7 @@ import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.api.utils.SystemProperty.Environment.Value;
 import com.google.common.collect.ImmutableSet;
 import com.sun.jersey.spi.container.ContainerRequest;
+import me.lazerka.gae.jersey.oauth2.facebook.AccessTokenResponse;
 import me.lazerka.gae.jersey.oauth2.facebook.FacebookUserPrincipal;
 import me.lazerka.gae.jersey.oauth2.google.GoogleUserPrincipal;
 import org.mockito.ArgumentCaptor;
@@ -45,7 +46,7 @@ import static org.testng.Assert.fail;
 /**
  * @author Dzmitry Lazerka
  */
-public class AuthFilterTest {
+public class GaeOauthAuthFilterTest {
 	String token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" +
 			".eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiIxMTAxNjk0ODQ0NzQzODYyNzYzMzQiLCJhenAiOiIx" +
 			"MDA4NzE5OTcwOTc4LWhiMjRuMmRzdGI0MG80NWQ0ZmV1bzJ1a3FtY2M2MzgxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiZ" +
@@ -56,14 +57,15 @@ public class AuthFilterTest {
 
 	ContainerRequest request;
 
-	AuthFilter unit;
+	GaeOauthAuthFilter unit;
 	private TokenVerifier verifierMock;
+	private AccessTokenResponse accessTokenResponse;
 
 	@BeforeMethod
 	public void setUp() throws URISyntaxException, IOException {
 		request = mock(ContainerRequest.class);
 
-		unit = new AuthFilter();
+		unit = new GaeOauthAuthFilter();
 		verifierMock = mock(TokenVerifier.class);
 		unit.tokenVerifiers = ImmutableSet.of(verifierMock);
 
@@ -83,8 +85,9 @@ public class AuthFilterTest {
 
 		when(verifierMock.canHandle(null))
 				.thenReturn(true);
+		accessTokenResponse = new AccessTokenResponse("1234", "bearer", 12345L);
 		when(verifierMock.verify(token))
-				.thenReturn(new FacebookUserPrincipal("123", "test@example.com"));
+				.thenReturn(new FacebookUserPrincipal("123", accessTokenResponse));
 		when(verifierMock.getAuthenticationScheme())
 				.thenReturn("TestScheme");
 
@@ -94,7 +97,7 @@ public class AuthFilterTest {
 		verify(request).setSecurityContext(captor.capture());
 
 		SecurityContext securityContext = captor.getValue();
-		UserPrincipal expectedPrincipal = new FacebookUserPrincipal("123", "test@example.com");
+		UserPrincipal expectedPrincipal = new FacebookUserPrincipal("123", accessTokenResponse);
 		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(expectedPrincipal));
 		assertThat(securityContext.getAuthenticationScheme(), is("TestScheme"));
 		assertThat(securityContext.isSecure(), is(true));
@@ -126,7 +129,7 @@ public class AuthFilterTest {
 		SecurityContext securityContext = captor.getValue();
 		UserPrincipal expectedPrincipal = new GoogleUserPrincipal("123", "test@example.com");
 		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(expectedPrincipal));
-		assertThat(securityContext.getAuthenticationScheme(), is(AuthFilter.GAE_AUTH_SCHEME));
+		assertThat(securityContext.getAuthenticationScheme(), is(GaeOauthAuthFilter.GAE_AUTH_SCHEME));
 		assertThat(securityContext.isSecure(), is(true));
 		assertThat(securityContext.isUserInRole(Role.OPTIONAL), is(true));
 		assertThat(securityContext.isUserInRole(Role.USER), is(true));
@@ -184,7 +187,7 @@ public class AuthFilterTest {
 
 		SecurityContext securityContext = captor.getValue();
 		assertThat(securityContext.getUserPrincipal(), nullValue());
-		assertThat(securityContext.getAuthenticationScheme(), is(AuthFilter.UNAUTHENTICATED_AUTH_SCHEME));
+		assertThat(securityContext.getAuthenticationScheme(), is(GaeOauthAuthFilter.UNAUTHENTICATED_AUTH_SCHEME));
 		assertThat(securityContext.isSecure(), is(true));
 	}
 }

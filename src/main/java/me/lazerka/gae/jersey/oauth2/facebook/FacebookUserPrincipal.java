@@ -16,25 +16,43 @@
 
 package me.lazerka.gae.jersey.oauth2.facebook;
 
+import com.google.common.base.Optional;
 import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * @author Dzmitry Lazerka
  */
 public class FacebookUserPrincipal extends UserPrincipal {
-	private final String accessToken;
+	private final AccessTokenResponse accessTokenResponse;
 
-	public FacebookUserPrincipal(@Nonnull String id, String accessToken) {
+	@Nullable
+	private final FacebookUser facebookUser;
+
+	public FacebookUserPrincipal(@Nonnull String id, @Nonnull AccessTokenResponse accessTokenResponse) {
 		super(id);
-		this.accessToken = accessToken;
+		this.accessTokenResponse = checkNotNull(accessTokenResponse);
+		facebookUser = null;
+	}
+
+	public FacebookUserPrincipal(@Nonnull FacebookUser user, @Nonnull AccessTokenResponse accessTokenResponse) {
+		super(user.id);
+		this.accessTokenResponse = checkNotNull(accessTokenResponse);
+		facebookUser = user;
 	}
 
 	/**
 	 * Exchanged access token in case you need to call Facebook API for this user info (like email).
 	 */
-	public String getAccessToken() {
-		return accessToken;
+	public AccessTokenResponse getAccessTokenResponse() {
+		return accessTokenResponse;
+	}
+
+	public Optional<FacebookUser> getFacebookUser() {
+		return Optional.fromNullable(facebookUser);
 	}
 }

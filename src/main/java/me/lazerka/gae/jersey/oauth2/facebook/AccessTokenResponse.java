@@ -18,6 +18,8 @@ package me.lazerka.gae.jersey.oauth2.facebook;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
 /**
  * See https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow#checktoken
  *
@@ -32,10 +34,49 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * @author Dzmitry Lazerka
  */
-class AccessTokenResponse {
+public class AccessTokenResponse {
 	@JsonProperty("access_token")
 	String accessToken;
 
 	@JsonProperty("token_type")
 	String tokenType;
+
+	@JsonProperty("expires_in")
+	Long expiresIn;
+
+	// For Jackson.
+	AccessTokenResponse() {}
+
+	public AccessTokenResponse(String accessToken, String tokenType, Long expiresIn) {
+		this.accessToken = accessToken;
+		this.tokenType = tokenType;
+		this.expiresIn = expiresIn;
+	}
+
+	public String getAccessToken() {
+		return accessToken;
+	}
+
+	public String getTokenType() {
+		return tokenType;
+	}
+
+	public Long getExpiresIn() {
+		return expiresIn;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (!(o instanceof AccessTokenResponse)) return false;
+		AccessTokenResponse that = (AccessTokenResponse) o;
+		return Objects.equals(accessToken, that.accessToken) &&
+				Objects.equals(tokenType, that.tokenType) &&
+				Objects.equals(expiresIn, that.expiresIn);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(accessToken, tokenType, expiresIn);
+	}
 }
