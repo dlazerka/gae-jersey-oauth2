@@ -22,7 +22,7 @@
  * There's two ways to authenticate user. Once user authorized our app at Facebook, Facebook issues user so
  * called authResponse, that contains `accessToken` and `signedRequest`. Both of them can be used to authenticate
  * user:
- * 1. Inspect `accessToken` using Facebook's endpoint /debug_token. See {@link me.lazerka.gae.jersey.oauth2.facebook.TokenVerifierFacebookInspectToken}.
+ * 1. Inspect `accessToken` using Facebook's endpoint /debug_token. See {@link me.lazerka.gae.jersey.oauth2.facebook.TokenVerifierFacebookDebugToken}.
  * 2. Parse signedRequest from Facebook's authResponse. Check it's signature and exchange it's `code` for
  *    an app access token.
  *

@@ -23,7 +23,6 @@ import com.google.appengine.api.utils.SystemProperty.Environment.Value;
 import com.google.common.collect.ImmutableSet;
 import com.sun.jersey.spi.container.ContainerRequest;
 import me.lazerka.gae.jersey.oauth2.facebook.AccessTokenResponse;
-import me.lazerka.gae.jersey.oauth2.facebook.FacebookUserPrincipal;
 import me.lazerka.gae.jersey.oauth2.google.GoogleUserPrincipal;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
@@ -83,11 +82,10 @@ public class GaeOauthAuthFilterTest {
 		when(request.isSecure()).thenReturn(true);
 		when(request.getHeaderValue("Authorization")).thenReturn("Bearer " + token);
 
-		when(verifierMock.canHandle(null))
-				.thenReturn(true);
-		accessTokenResponse = new AccessTokenResponse("1234", "bearer", 12345L);
+		unit.defaultTokenVerifier = verifierMock;
+		UserPrincipal userPrincipal = mock(UserPrincipal.class);
 		when(verifierMock.verify(token))
-				.thenReturn(new FacebookUserPrincipal("123", accessTokenResponse));
+				.thenReturn(userPrincipal);
 		when(verifierMock.getAuthenticationScheme())
 				.thenReturn("TestScheme");
 
@@ -97,8 +95,7 @@ public class GaeOauthAuthFilterTest {
 		verify(request).setSecurityContext(captor.capture());
 
 		SecurityContext securityContext = captor.getValue();
-		UserPrincipal expectedPrincipal = new FacebookUserPrincipal("123", accessTokenResponse);
-		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(expectedPrincipal));
+		assertThat((UserPrincipal) securityContext.getUserPrincipal(), is(userPrincipal));
 		assertThat(securityContext.getAuthenticationScheme(), is("TestScheme"));
 		assertThat(securityContext.isSecure(), is(true));
 		assertThat(securityContext.isUserInRole(Role.OPTIONAL), is(true));
@@ -141,8 +138,7 @@ public class GaeOauthAuthFilterTest {
 		when(request.isSecure()).thenReturn(true);
 		when(request.getHeaderValue("Authorization")).thenReturn("Bearer " + token);
 
-		when(verifierMock.canHandle(null))
-				.thenReturn(true);
+		unit.defaultTokenVerifier = verifierMock;
 		when(verifierMock.verify(token))
 				.thenThrow(new InvalidKeyException("Test msg"));
 

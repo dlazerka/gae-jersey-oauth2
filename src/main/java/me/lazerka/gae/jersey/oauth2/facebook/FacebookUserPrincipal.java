@@ -22,37 +22,37 @@ import me.lazerka.gae.jersey.oauth2.UserPrincipal;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 /**
  * @author Dzmitry Lazerka
  */
 public class FacebookUserPrincipal extends UserPrincipal {
-	private final AccessTokenResponse accessTokenResponse;
 
-	@Nullable
 	private final FacebookUser facebookUser;
+	private final AccessTokenResponse accessTokenResponse;
+	private final DebugTokenResponse debugTokenResponse;
 
-	public FacebookUserPrincipal(@Nonnull String id, @Nonnull AccessTokenResponse accessTokenResponse) {
+	public FacebookUserPrincipal(
+			@Nonnull String id,
+			@Nullable FacebookUser facebookUser,
+			@Nullable AccessTokenResponse accessTokenResponse,
+			@Nullable DebugTokenResponse debugTokenResponse
+	) {
 		super(id);
-		this.accessTokenResponse = checkNotNull(accessTokenResponse);
-		facebookUser = null;
-	}
-
-	public FacebookUserPrincipal(@Nonnull FacebookUser user, @Nonnull AccessTokenResponse accessTokenResponse) {
-		super(user.id);
-		this.accessTokenResponse = checkNotNull(accessTokenResponse);
-		facebookUser = user;
-	}
-
-	/**
-	 * Exchanged access token in case you need to call Facebook API for this user info (like email).
-	 */
-	public AccessTokenResponse getAccessTokenResponse() {
-		return accessTokenResponse;
+		this.facebookUser = facebookUser;
+		this.accessTokenResponse = accessTokenResponse;
+		this.debugTokenResponse = debugTokenResponse;
 	}
 
 	public Optional<FacebookUser> getFacebookUser() {
 		return Optional.fromNullable(facebookUser);
 	}
+
+	public Optional<AccessTokenResponse> getAccessTokenResponse() {
+		return Optional.fromNullable(accessTokenResponse);
+	}
+
+	public Optional<DebugTokenResponse> getDebugTokenResponse() {
+		return Optional.fromNullable(debugTokenResponse);
+	}
+
 }

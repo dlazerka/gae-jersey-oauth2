@@ -26,7 +26,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Files;
 import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
-import me.lazerka.gae.jersey.oauth2.facebook.TokenVerifierFacebookSignedRequest;
+import com.google.inject.name.Names;
+import me.lazerka.gae.jersey.oauth2.facebook.TokenVerifierFacebookDebugToken;
 import me.lazerka.gae.jersey.oauth2.google.TokenVerifierGoogleSignature;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -100,9 +101,13 @@ public class OauthModule extends AbstractModule {
 				new NowProvider()
 		);
 
-		TokenVerifier facebookVerifier = new TokenVerifierFacebookSignedRequest(
+		ObjectMapper jackson = new ObjectMapper();
+
+		bind(String.class).annotatedWith(Names.named("facebook.app.id")).toInstance(facebookAppId);
+		bind(String.class).annotatedWith(Names.named("facebook.app.secret")).toInstance(facebookAppSecret);
+		TokenVerifier facebookVerifierSignedRequest = new TokenVerifierFacebookDebugToken(
 				URLFetchServiceFactory.getURLFetchService(),
-				new ObjectMapper(),
+				jackson,
 				facebookAppId,
 				facebookAppSecret,
 				new NowProvider()
@@ -110,7 +115,9 @@ public class OauthModule extends AbstractModule {
 
 		Multibinder<TokenVerifier> multibinder = Multibinder.newSetBinder(binder(), TokenVerifier.class);
 		multibinder.addBinding().toInstance(googleVerifier);
-		multibinder.addBinding().toInstance(facebookVerifier);
+		multibinder.addBinding().toInstance(facebookVerifierSignedRequest);
+
+		bind(TokenVerifier.class).annotatedWith(Names.named("default")).toInstance(googleVerifier);
 	}
 
 	private GooglePublicKeysManager getGooglePublicKeysManager() {

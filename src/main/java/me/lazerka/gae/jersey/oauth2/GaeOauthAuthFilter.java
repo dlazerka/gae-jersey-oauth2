@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableSet;
 import com.sun.jersey.spi.container.ContainerRequest;
 import com.sun.jersey.spi.container.ContainerRequestFilter;
 import com.sun.jersey.spi.container.ContainerResponseFilter;
-import com.sun.jersey.spi.container.ResourceFilter;
 import me.lazerka.gae.jersey.oauth2.google.GoogleUserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -54,10 +54,9 @@ import static com.google.common.base.Preconditions.checkState;
  *
  * @author Dzmitry Lazerka
  */
-public class GaeOauthAuthFilter implements ResourceFilter, ContainerRequestFilter {
+public class GaeOauthAuthFilter implements AuthFilter {
 	private static final Logger logger = LoggerFactory.getLogger(GaeOauthAuthFilter.class);
 
-	public static final String PROVIDER_HEADER = "X-Authorization-Provider";
 	public static final String GAE_AUTH_SCHEME = "GAE";
 	public static final String UNAUTHENTICATED_AUTH_SCHEME = "Unauthenticated";
 
@@ -65,11 +64,15 @@ public class GaeOauthAuthFilter implements ResourceFilter, ContainerRequestFilte
 	protected Set<TokenVerifier> tokenVerifiers;
 
 	@Inject
+	@Named("default")
+	protected TokenVerifier defaultTokenVerifier;
+
+	@Inject
 	protected UserService userService;
 
 	protected Set<String> rolesAllowed;
 
-	protected void setRolesAllowed(Set<String> rolesAllowed) {
+	public void setRolesAllowed(Set<String> rolesAllowed) {
 		this.rolesAllowed = rolesAllowed;
 	}
 
@@ -124,21 +127,17 @@ public class GaeOauthAuthFilter implements ResourceFilter, ContainerRequestFilte
 
 		if (authorizationHeader.startsWith("Bearer ")) {
 			String token = authorizationHeader.substring("Bearer ".length());
-			return useOauthAuthentication(request, token);
+			return useBearerAuthentication(request, token);
 		} else {
 			logger.warn("Authorization should use Bearer protocol {}", request.getPath());
 			return throwUnauthenticatedIfNotOptional(request, "Not Bearer Authorization", null);
 		}
 	}
 
-	protected AuthSecurityContext useOauthAuthentication(ContainerRequest request, String token) {
+	protected AuthSecurityContext useBearerAuthentication(ContainerRequest request, String token) {
 		TokenVerifier tokenVerifier = findTokenVerifier(request);
 
-		if (tokenVerifier == null) {
-			return throwUnauthenticatedIfNotOptional(request, "Cannot found suitable TokenVerifier", null);
-		}
-
-		logger.trace("Authenticating OAuth2.0 user...");
+		logger.trace("Authenticating using {} scheme...", tokenVerifier.getAuthenticationScheme());
 		try {
 			UserPrincipal userPrincipal = tokenVerifier.verify(token);
 			return new AuthSecurityContext(
@@ -157,15 +156,13 @@ public class GaeOauthAuthFilter implements ResourceFilter, ContainerRequestFilte
 	}
 
 	protected TokenVerifier findTokenVerifier(ContainerRequest request) {
-		String provider = request.getHeaderValue(PROVIDER_HEADER);
 		for (TokenVerifier tokenVerifier : tokenVerifiers) {
-			if (tokenVerifier.canHandle(provider)) {
+			if (tokenVerifier.canHandle(request)) {
 				return tokenVerifier;
 			}
 		}
 
-		logger.warn("No TokenVerifier for provider {}", provider);
-		return null;
+		return defaultTokenVerifier;
 	}
 
 	protected AuthSecurityContext useGaeAuthentication(ContainerRequest request) {

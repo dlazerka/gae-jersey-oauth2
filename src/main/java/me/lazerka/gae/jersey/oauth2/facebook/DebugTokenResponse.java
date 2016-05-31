@@ -19,6 +19,7 @@ package me.lazerka.gae.jersey.oauth2.facebook;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * See https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow#checktoken
@@ -47,11 +48,17 @@ import java.util.List;
  *
  * @author Dzmitry Lazerka
  */
-class DebugTokenResponse {
-	@JsonProperty
+public class DebugTokenResponse {
+	@JsonProperty("data")
 	Data data;
 
 	static class Data {
+		@JsonProperty("is_valid")
+		boolean isValid;
+
+		@JsonProperty("error")
+		Error error;
+
 		@JsonProperty("app_id")
 		String appId;
 
@@ -60,9 +67,6 @@ class DebugTokenResponse {
 
 		@JsonProperty("expires_at")
 		long expiresAt;
-
-		@JsonProperty("is_valid")
-		boolean isValid;
 
 		@JsonProperty("issued_at")
 		long issuedAt;
@@ -75,10 +79,100 @@ class DebugTokenResponse {
 
 		@JsonProperty("user_id")
 		String userId;
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (!(o instanceof Data)) return false;
+			Data data = (Data) o;
+			return expiresAt == data.expiresAt &&
+					isValid == data.isValid &&
+					issuedAt == data.issuedAt &&
+					Objects.equals(appId, data.appId) &&
+					Objects.equals(application, data.application) &&
+					Objects.equals(metadata, data.metadata) &&
+					Objects.equals(scopes, data.scopes) &&
+					Objects.equals(userId, data.userId);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(appId, application, expiresAt, isValid, issuedAt, metadata, scopes, userId);
+		}
 	}
 
 	static class Metadata {
 		@JsonProperty("sso")
 		String sso;
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (!(o instanceof Metadata)) return false;
+			Metadata metadata = (Metadata) o;
+			return Objects.equals(sso, metadata.sso);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(sso);
+		}
+	}
+
+	static class Error {
+		@JsonProperty("code")
+		int code;
+
+		@JsonProperty("message")
+		String message;
+	}
+
+	public boolean isValid() {
+		return data.isValid;
+	}
+
+	public String getAppId() {
+		return data.appId;
+	}
+
+	public String getApplication() {
+		return data.application;
+	}
+
+	public long getExpiresAt() {
+		return data.expiresAt;
+	}
+
+	public long getIssuedAt() {
+		return data.issuedAt;
+	}
+
+	public Metadata getMetadata() {
+		return data.metadata;
+	}
+
+	public List<String> getScopes() {
+		return data.scopes;
+	}
+
+	public String getUserId() {
+		return data.userId;
+	}
+
+	public String getSso() {
+		return data.metadata == null ? null : data.metadata.sso;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (!(o instanceof DebugTokenResponse)) return false;
+		DebugTokenResponse that = (DebugTokenResponse) o;
+		return Objects.equals(data, that.data);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(data);
 	}
 }

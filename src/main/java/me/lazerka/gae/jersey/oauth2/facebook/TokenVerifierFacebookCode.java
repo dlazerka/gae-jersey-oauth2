@@ -18,11 +18,9 @@ package me.lazerka.gae.jersey.oauth2.facebook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.api.urlfetch.URLFetchService;
-import me.lazerka.gae.jersey.oauth2.TokenVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 
@@ -37,25 +35,23 @@ import java.security.InvalidKeyException;
  *
  * @author Dzmitry Lazerka
  */
-public class TokenVerifierFacebookCode implements TokenVerifier {
+public class TokenVerifierFacebookCode extends BasicTokenVerifier {
 	private static final Logger logger = LoggerFactory.getLogger(TokenVerifierFacebookCode.class);
 
 	public static final String AUTH_SCHEME = "Facebook/Code";
 
 	final FacebookFetcher fetcher;
+	final String redirectUri;
 
 	public TokenVerifierFacebookCode(
 			URLFetchService urlFetchService,
 			ObjectMapper jackson,
 			String appId,
-			String appSecret
+			String appSecret,
+			String redirectUri
 	) {
+		this.redirectUri = redirectUri;
 		this.fetcher = new FacebookFetcher(appId, appSecret, jackson, urlFetchService);
-	}
-
-	@Override
-	public boolean canHandle(@Nullable String authProvider) {
-		return "facebook".equals(authProvider);
 	}
 
 	@Override
@@ -63,13 +59,13 @@ public class TokenVerifierFacebookCode implements TokenVerifier {
 		logger.trace("Requesting endpoint to validate token");
 
 		// This verifies expiration and audience (our app).
-		AccessTokenResponse accessTokenResponse = fetcher.fetchAccessToken(code);
+		AccessTokenResponse accessTokenResponse = fetcher.fetchUserAccessToken(code, redirectUri);
 
 		// We still need to know User ID.
 
 		FacebookUser facebookUser = fetcher.fetchUser(accessTokenResponse.accessToken);
 
-		return new FacebookUserPrincipal(facebookUser, accessTokenResponse);
+		return new FacebookUserPrincipal(facebookUser.getId(), facebookUser, accessTokenResponse, null);
 	}
 
 	@Override

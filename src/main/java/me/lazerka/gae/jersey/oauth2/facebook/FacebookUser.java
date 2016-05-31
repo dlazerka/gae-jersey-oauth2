@@ -55,7 +55,7 @@ public class FacebookUser {
 	int timezone;
 
 	// All fields that are marked as "core" in FB API.
-	static final Set<String> FIELDS = ImmutableSet.of(
+	public static final Set<String> FIELDS = ImmutableSet.of(
 			"id",
 			"birthday",
 			"email",
@@ -65,6 +65,38 @@ public class FacebookUser {
 			"name",
 			"timezone"
 	);
+
+	public String getId() {
+		return id;
+	}
+
+	public String getBirthday() {
+		return birthday;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public String getLastName() {
+		return lastName;
+	}
+
+	public String getMiddleName() {
+		return middleName;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public int getTimezone() {
+		return timezone;
+	}
 
 	@Override
 	public String toString() {

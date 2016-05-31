@@ -22,11 +22,14 @@ import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.io.Resources;
 import com.sun.jersey.spi.container.ContainerRequest;
+import org.joda.time.DateTime;
 import org.mockito.ArgumentMatcher;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.inject.Provider;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -42,25 +45,28 @@ import static org.testng.Assert.fail;
 /**
  * @author Dzmitry Lazerka
  */
-public class TokenVerifierFacebookCodeTest {
+public class TokenVerifierFacebookDebugTokenTest {
 	String code = "ctestcopde123";
 
 	static final ObjectMapper jackson = new ObjectMapper();
 
 	ContainerRequest request = mock(ContainerRequest.class);
 
-	TokenVerifierFacebookCode unit;
+	@Mock
+	Provider<DateTime> nowProvider;
+
+	TokenVerifierFacebookDebugToken unit;
 
 	@BeforeMethod
 	public void setUp() throws URISyntaxException, IOException {
 		MockitoAnnotations.initMocks(this);
 
-		unit = new TokenVerifierFacebookCode(
+		unit = new TokenVerifierFacebookDebugToken(
 				mock(URLFetchService.class),
 				jackson,
 				"138483919580948",
 				"secret",
-				"http://local.host/test"
+				nowProvider
 		);
 
 		when(request.getRequestUri())
@@ -71,39 +77,33 @@ public class TokenVerifierFacebookCodeTest {
 	public void testVerifyOk() throws Exception {
 		{
 			HTTPResponse response = mock(HTTPResponse.class);
-			URL url = getClass().getResource("access_token.response.ok.json");
+			URL url = getClass().getResource("debug_token.response.ok.json");
 			when(response.getResponseCode()).thenReturn(200);
 			when(response.getContent()).thenReturn(Resources.toByteArray(url));
 			doReturn(response)
 					.when(unit.fetcher.urlFetchService)
-					.fetch(argThat(new MyRequestMatcher("/oauth/access_token")));
+					.fetch(argThat(new MyRequestMatcher("/debug_token")));
 		}
 
-		{
-			HTTPResponse response = mock(HTTPResponse.class);
-			URL url = getClass().getResource("user.response.ok.json");
-			when(response.getResponseCode()).thenReturn(200);
-			when(response.getContent()).thenReturn(Resources.toByteArray(url));
-			doReturn(response)
-					.when(unit.fetcher.urlFetchService)
-					.fetch(argThat(new MyRequestMatcher("/me")));
-		}
+		when(nowProvider.get()).thenReturn(DateTime.parse("2016-05-31T21:00:00Z"));
 
 		FacebookUserPrincipal principal = unit.verify(code);
 
-		assertThat(principal.getId(), is("1234567890"));
-		assertThat(principal.getFacebookUser().get().getEmail(), is("email@example.com"));
-		assertThat(principal.getAccessTokenResponse().get(), is(new AccessTokenResponse("01234|testToken", "bearer", 1234L)));
+		assertThat(principal.getId(), is("987654321"));
+		DebugTokenResponse debugTokenResponse = principal.getDebugTokenResponse().get();
+		assertThat(debugTokenResponse.getAppId(), is("138483919580948"));
+		assertThat(debugTokenResponse.getUserId(), is("987654321"));
+		assertThat(debugTokenResponse.isValid(), is(true));
 	}
 
 	@Test
 	public void testVerify403() throws Exception {
 		{
 			HTTPResponse response = mock(HTTPResponse.class);
-			URL resource = getClass().getResource("access_token.response.invalid.json");
+			URL resource = getClass().getResource("debug_token.response.invalid.json");
 			when(response.getResponseCode()).thenReturn(403);
 			when(response.getContent()).thenReturn(Resources.toByteArray(resource));
-			when(unit.fetcher.urlFetchService.fetch(argThat(new MyRequestMatcher("/oauth/access_token"))))
+			when(unit.fetcher.urlFetchService.fetch(argThat(new MyRequestMatcher("/debug_token"))))
 					.thenReturn(response);
 		}
 

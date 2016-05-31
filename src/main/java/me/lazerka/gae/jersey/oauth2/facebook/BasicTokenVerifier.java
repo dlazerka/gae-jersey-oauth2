@@ -14,23 +14,25 @@
  * limitations under the License.
  */
 
-package me.lazerka.gae.jersey.oauth2;
+package me.lazerka.gae.jersey.oauth2.facebook;
 
 import com.sun.jersey.spi.container.ContainerRequest;
+import me.lazerka.gae.jersey.oauth2.TokenVerifier;
 
 import javax.annotation.Nonnull;
-import javax.ws.rs.core.SecurityContext;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 
 /**
  * @author Dzmitry Lazerka
  */
-public interface TokenVerifier {
-	boolean canHandle(@Nonnull ContainerRequest request);
+public abstract class BasicTokenVerifier implements TokenVerifier {
+	private static final String AUTH_SCHEME_HEADER = "X-Authorization-Scheme";
 
-	UserPrincipal verify(String authToken) throws IOException, GeneralSecurityException;
+	@Override
+	public boolean canHandle(@Nonnull ContainerRequest request) {
+		String given = request.getHeaderValue(AUTH_SCHEME_HEADER);
+		return getAuthenticationScheme().equals(given);
+	}
 
-	/** @return what should be returned from {@link SecurityContext#getAuthenticationScheme()}. */
-	String getAuthenticationScheme();
+	@Override
+	public abstract String getAuthenticationScheme();
 }

@@ -21,15 +21,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
-import me.lazerka.gae.jersey.oauth2.TokenVerifier;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import javax.inject.Provider;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -40,7 +36,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * Filter that verifies signed_request.
+ * Verifies FB signed_request by checking its signature.
  *
  * Documentation on token verification:
  * https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow#confirm
@@ -50,18 +46,15 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  *
  * @author Dzmitry Lazerka
  */
-public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
+public class TokenVerifierFacebookSignedRequest extends BasicTokenVerifier {
 	private static final Logger logger = LoggerFactory.getLogger(TokenVerifierFacebookSignedRequest.class);
 
 	public static final String AUTH_SCHEME = "Facebook/SignedRequest";
 
 	private final Mac hmac;
 
-	final URLFetchService urlFetchService;
 	final ObjectMapper jackson;
-	final String appId;
-	final String appSecret;
-	final Provider<DateTime> nowProvider;
+	final String redirectUri;
 	final FacebookFetcher fetcher;
 
 	public TokenVerifierFacebookSignedRequest(
@@ -69,13 +62,10 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 			ObjectMapper jackson,
 			String appId,
 			String appSecret,
-			Provider<DateTime> nowProvider
+			String redirectUri
 	) {
-		this.urlFetchService = urlFetchService;
 		this.jackson = jackson;
-		this.appId = appId;
-		this.appSecret = appSecret;
-		this.nowProvider = nowProvider;
+		this.redirectUri = redirectUri;
 		this.fetcher = new FacebookFetcher(appId, appSecret, jackson, urlFetchService);
 
 		try {
@@ -85,11 +75,6 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 		} catch (NoSuchAlgorithmException | InvalidKeyException e) {
 			throw Throwables.propagate(e);
 		}
-	}
-
-	@Override
-	public boolean canHandle(@Nullable String authProvider) {
-		return "facebook".equals(authProvider);
 	}
 
 	@Override
@@ -117,13 +102,14 @@ public class TokenVerifierFacebookSignedRequest implements TokenVerifier {
 
 		// We still need to verify expiration somehow. The only way is to ask Facebook.
 
-		// Exchange `code` for long-lived access token. This serves as verification for `code` expiration too.
-		AccessTokenResponse response = fetcher.fetchAccessToken(signedRequest.code);
-		logger.debug("Access token expires in {}s", response.expiresIn);
+		// Exchange `code` for long-lived access token.
+		// This serves as verification for `code` expiration too.
+
+		AccessTokenResponse response = fetcher.fetchUserAccessToken(signedRequest.code, redirectUri);
 
 		// Not fetching email, because maybe we won't need to, if ID is enough.
 
-		return new FacebookUserPrincipal(signedRequest.userId, response);
+		return new FacebookUserPrincipal(signedRequest.userId, null, response, null);
 	}
 
 	@Override

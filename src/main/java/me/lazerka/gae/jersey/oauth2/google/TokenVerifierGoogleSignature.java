@@ -19,7 +19,7 @@ package me.lazerka.gae.jersey.oauth2.google;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import me.lazerka.gae.jersey.oauth2.TokenVerifier;
+import me.lazerka.gae.jersey.oauth2.facebook.BasicTokenVerifier;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ import java.security.InvalidKeyException;
  * @author Dzmitry Lazerka
  */
 @Singleton
-public class TokenVerifierGoogleSignature implements TokenVerifier {
+public class TokenVerifierGoogleSignature extends BasicTokenVerifier {
 	private static final Logger logger = LoggerFactory.getLogger(TokenVerifierGoogleSignature.class);
 
 	public static final String AUTH_SCHEME = "GoogleSignIn/Signature";
@@ -53,11 +53,6 @@ public class TokenVerifierGoogleSignature implements TokenVerifier {
 	) {
 		this.verifier = verifier;
 		this.nowProvider = nowProvider;
-	}
-
-	@Override
-	public boolean canHandle(String authProvider) {
-		return authProvider == null || "google".equals(authProvider);
 	}
 
 	@Override

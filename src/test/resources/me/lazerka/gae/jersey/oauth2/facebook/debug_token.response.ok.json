@@ -1,17 +1,13 @@
 {
   "data": {
-    "app_id": 138483919580948,
-    "application": "Social Cafe",
-    "expires_at": 1352419328,
+    "app_id": "138483919580948",
+    "application": "TEst",
+    "expires_at": 1464732000,
     "is_valid": true,
-    "issued_at": 1347235328,
-    "metadata": {
-      "sso": "iphone-safari"
-    },
     "scopes": [
       "email",
-      "publish_actions"
+      "public_profile"
     ],
-    "user_id": 1207059
+    "user_id": "987654321"
   }
 }

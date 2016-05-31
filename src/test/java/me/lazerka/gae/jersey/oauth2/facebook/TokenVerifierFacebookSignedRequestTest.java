@@ -71,12 +71,12 @@ public class TokenVerifierFacebookSignedRequestTest {
 				jackson,
 				"138483919580948",
 				"secret",
-				nowProvider
+				"http://local.host/test"
 		);
 
 		when(request.getRequestUri())
 				.thenReturn(URI.create("https://example.com"));
-		when(unit.urlFetchService.fetch(any(HTTPRequest.class)))
+		when(unit.fetcher.urlFetchService.fetch(any(HTTPRequest.class)))
 				.thenReturn(remoteResponse);
 	}
 
@@ -87,11 +87,10 @@ public class TokenVerifierFacebookSignedRequestTest {
 
 		when(remoteResponse.getResponseCode()).thenReturn(200);
 		when(remoteResponse.getContent()).thenReturn(content);
-		when(unit.nowProvider.get()).thenReturn(DateTime.parse("2012-11-09T00:00:00Z"));
 
 		FacebookUserPrincipal principal = unit.verify(accessToken);
 
 		assertThat(principal.getId(), is("10153390127171076"));
-		assertThat(principal.getAccessTokenResponse().getAccessToken(), is("01234|testToken"));
+		assertThat(principal.getAccessTokenResponse().get().getAccessToken(), is("01234|testToken"));
 	}
 }

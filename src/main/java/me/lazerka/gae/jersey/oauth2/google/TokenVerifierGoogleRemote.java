@@ -23,8 +23,7 @@ import com.google.appengine.api.urlfetch.HTTPRequest;
 import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.base.Stopwatch;
-import me.lazerka.gae.jersey.oauth2.TokenVerifier;
-import me.lazerka.gae.jersey.oauth2.UserPrincipal;
+import me.lazerka.gae.jersey.oauth2.facebook.BasicTokenVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +51,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * @author Dzmitry Lazerka
  */
 @Singleton
-public class TokenVerifierGoogleRemote implements TokenVerifier {
+public class TokenVerifierGoogleRemote extends BasicTokenVerifier {
 	private static final Logger logger = LoggerFactory.getLogger(TokenVerifierGoogleRemote.class);
 
 	public static final String AUTH_SCHEME = "GoogleSignIn/Remote";
@@ -70,12 +69,7 @@ public class TokenVerifierGoogleRemote implements TokenVerifier {
 	}
 
 	@Override
-	public boolean canHandle(String authProvider) {
-		return authProvider == null || "google".equals(authProvider);
-	}
-
-	@Override
-	public UserPrincipal verify(String authToken) throws IOException, InvalidKeyException {
+	public GoogleUserPrincipal verify(String authToken) throws IOException, InvalidKeyException {
 		logger.trace("Requesting endpoint to validate token");
 
 		URL url = UriBuilder.fromUri(TOKEN_INFO)

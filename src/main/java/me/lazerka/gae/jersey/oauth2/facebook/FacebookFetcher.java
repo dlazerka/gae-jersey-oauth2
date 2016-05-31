@@ -35,16 +35,11 @@ import java.util.concurrent.TimeUnit;
 
 import static com.google.appengine.api.urlfetch.FetchOptions.Builder.validateCertificate;
 import static com.google.appengine.api.urlfetch.HTTPMethod.GET;
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * Filter that verifies token by making HTTPS call to Facebook endpoint.
- * <p>
- * Documentation on token verification:
- * https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow#confirm
- * https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow#checktoken
- * <p>
- * Documentation on parsing signed_request: https://developers.facebook.com/docs/games/gamesonfacebook/login#parsingsr
+ * Common functions for Facebook token verifiers (used as composition).
  *
  * @author Dzmitry Lazerka
  */
@@ -58,14 +53,14 @@ class FacebookFetcher {
 	final ObjectMapper jackson;
 	final URLFetchService urlFetchService;
 
-	public FacebookFetcher(String appId, String appSecret, ObjectMapper jackson, URLFetchService urlFetchService) {
+	FacebookFetcher(String appId, String appSecret, ObjectMapper jackson, URLFetchService urlFetchService) {
 		this.appId = appId;
 		this.appSecret = appSecret;
 		this.jackson = jackson;
 		this.urlFetchService = urlFetchService;
 	}
 
-	public String fetch(URL url) throws IOException, InvalidKeyException {
+	String fetch(URL url) throws IOException, InvalidKeyException {
 		logger.trace("Requesting endpoint to validate token");
 
 		HTTPRequest httpRequest = new HTTPRequest(url, GET, validateCertificate());
@@ -102,13 +97,15 @@ class FacebookFetcher {
 		return content;
 	}
 
-	public AccessTokenResponse fetchAccessToken(String code) throws IOException, InvalidKeyException {
+	/**
+	 * Not sure why we anyone would ever need this, because any requests accept client_id + client_secret as well.
+	 */
+	AccessTokenResponse fetchAppAccessToken() throws IOException, InvalidKeyException {
+		logger.trace("Requesting {}/oauth/access_token ...", GRAPH_API);
 		URL url = UriBuilder.fromUri(GRAPH_API).path("/oauth/access_token")
 				.queryParam("client_id", appId)
 				.queryParam("client_secret", appSecret)
-				.queryParam("code", code)
 				.queryParam("grant_type", "client_credentials")
-				// .queryParam("redirect_uri={redirect-uri}");
 				.build()
 				.toURL();
 
@@ -117,8 +114,27 @@ class FacebookFetcher {
 		return jackson.readValue(content, AccessTokenResponse.class);
 	}
 
+	AccessTokenResponse fetchUserAccessToken(String code, String redirectUri) throws IOException, InvalidKeyException {
+		logger.trace("Requesting {}/oauth/access_token ...", GRAPH_API);
+		URL url = UriBuilder.fromUri(GRAPH_API).path("/oauth/access_token")
+				.queryParam("client_id", appId)
+				.queryParam("client_secret", appSecret)
+				.queryParam("code", code)
+				.queryParam("scope", "email")
+				.queryParam("redirect_uri", redirectUri)
+				.build()
+				.toURL();
 
-	public FacebookUser fetchUser(String accessToken) throws IOException, InvalidKeyException {
+		String content = fetch(url);
+
+		return jackson.readValue(content, AccessTokenResponse.class);
+	}
+
+	FacebookUser fetchUser(String accessToken) throws IOException, InvalidKeyException {
+		logger.trace("Requesting {}/me ...", GRAPH_API);
+
+		checkArgument(!accessToken.contains("."), "This is signed_request, not access_token");
+
 		String fields = Joiner.on(',').join(FacebookUser.FIELDS);
 		URL url = UriBuilder.fromUri(GRAPH_API)
 				.path("me")
@@ -133,5 +149,22 @@ class FacebookFetcher {
 		logger.info("Fetched {}", facebookUser);
 
 		return facebookUser;
+	}
+
+	DebugTokenResponse fetchDebugToken(String userAccessToken) throws IOException, InvalidKeyException {
+		logger.trace("Requesting {}/oauth/access_token ...", GRAPH_API);
+
+		checkArgument(!userAccessToken.contains("."), "This is signed_request, not access_token");
+
+		URL url = UriBuilder.fromUri(GRAPH_API)
+				.path("debug_token")
+				.queryParam("input_token", userAccessToken)
+				.queryParam("access_token", "{appId}|{appSecret}")
+				.build(appId, appSecret)
+				.toURL();
+
+		String content = fetch(url);
+
+		return jackson.readValue(content, DebugTokenResponse.class);
 	}
 }
