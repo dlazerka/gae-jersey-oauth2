@@ -17,12 +17,12 @@ Extensible as much as possible, so you can swap any class with your own implemen
 		<dependency>
 			<groupId>me.lazerka.gae-jersey-oauth2</groupId>
 			<artifactId>gae-jersey-oauth2</artifactId>
-			<version>2.2</version>
+			<version>2.3</version>
 		</dependency>
 	```
 	* Gradle:
 	```groovy
-		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:2.2'
+		compile 'me.lazerka.gae-jersey-oauth2:gae-jersey-oauth2:2.3'
 	```
 2. Install Guice module:
 
