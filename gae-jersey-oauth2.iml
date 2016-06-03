@@ -30,7 +30,6 @@
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.6.3" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava:18.0" level="project" />
     <orderEntry type="library" name="Maven: com.google.appengine:appengine-api-1.0-sdk:1.9.38" level="project" />
-    <orderEntry type="library" name="Maven: com.google.appengine:appengine-api-1.0-sdk:1.9.38" level="project" />
     <orderEntry type="library" name="Maven: com.sun.jersey:jersey-server:1.19" level="project" />
     <orderEntry type="library" name="Maven: com.sun.jersey:jersey-core:1.19" level="project" />
     <orderEntry type="library" name="Maven: javax.ws.rs:jsr311-api:1.1.1" level="project" />
